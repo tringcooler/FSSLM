@@ -67,11 +67,11 @@ const FSSLM = (()=> {
         
         class c_ss_walker {
             
-            constructor(start, vset, mode = 'fast') {
-                this[PL_W_CUR] = [[start, [...vset]]];
+            constructor(start, varr) {
+                this[PL_W_CUR] = [[start, varr]];
                 this[PL_W_END] = [];
                 this[PL_W_WLK] = new Set();
-                this[MTD_W_INIT_STEP](mode);
+                this[MTD_W_INIT_STAT]();
             }
             
             [MTD_W_INIT_STAT]() {
@@ -88,22 +88,19 @@ const FSSLM = (()=> {
                 s.cmplt = cmplt;
             }
             
-            [MTD_W_INIT_STEP](mode) {
-                let smname = 'step_' + mode;
-                let mtd;
-                if(this[smname] instanceof Function) {
-                    mtd = this[smname];
-                } else {
-                    mtd = this.step_fast;
-                }
-                this.step = mtd;
-            }
-            
             get done() {
                 return this[PL_W_CUR].length === 0;
             }
             
-            step_fast() {
+        }
+        
+        class c_ss_walker_fast extends c_ss_walker {
+            
+            constructor(start, vset) {
+                super(start, [...vset]);
+            }
+            
+            step() {
                 let cseq = this[PL_W_CUR];
                 let [nd, varr] = cseq[0];
                 if(varr.length === 0) {
@@ -123,21 +120,29 @@ const FSSLM = (()=> {
                 }
             }
             
-            [MTD_W_STRIP_VSET](nd, varr) {
-                let lvarr = [],
-                    nvarr = [],
-                    evarr = [];
-                for(let v of varr) {
+        }
+        
+        class c_ss_walker_full extends c_ss_walker {
+            
+            constructor(start, vset) {
+                super(start, new c_masked_arr([...vset]));
+            }
+            
+            [MTD_W_STRIP_VARR](nd, varr) {
+                let looped = [],
+                    hit = [],
+                    missed = [];
+                for(let [v, co] of varr.coiter()) {
                     let nxt = nd.next(v);
                     if(nxt === KEY_K_LOOPBACK) {
-                        lvarr.push(v);
+                        looped.push([v, co]);
                     } else if(nxt) {
-                        nvarr.push(v);
+                        hit.push([v, co, nxt]);
                     } else {
-                        evarr.push(v);
+                        missed.push([v, co]);
                     }
                 }
-                return [lvarr, nvarr, evarr];
+                return [looped, hit, missed];
             }
             
             step_full() {
