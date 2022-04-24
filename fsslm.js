@@ -4,6 +4,8 @@ const FSSLM = (()=> {
     
         PR_N_VSET,
         FLG_N_VALID,
+        
+        KEY_K_LOOPBACK,
     
     ] = (function*() {
         while(true) {
@@ -11,12 +13,12 @@ const FSSLM = (()=> {
         }
     })();
     
-    const meta_fsslm = (setops, mapops) => {
+    const meta_fsslm = (mapops) => {
         
         class c_ss_node {
             
             constructor(vset, valid) {
-                this[PR_N_VSET] = setops.new(vset);
+                this[PR_N_VSET] = new set(vset);
                 this[FLG_N_VALID] = valid;
                 this[PL_N_NXT] = mapops.new();
             }
@@ -30,15 +32,77 @@ const FSSLM = (()=> {
         
         class c_ss_walker {
             
-            constructor(start, vset, uniq) {
-                this[PL_W_CUR] = [[start, setops.new(vset)]];
+            constructor(start, vset, mode = 'fast') {
+                this[PL_W_CUR] = [[start, [...vset]]];
                 this[PL_W_END] = [];
                 this[PL_W_WLK] = new Set();
-                this[FLG_W_UNIQ] = uniq;
+                this[MTD_W_INIT_STEP](mode);
+            }
+            
+            [MTD_W_INIT_STAT]() {
+                this[PL_W_STAT] = {
+                    done: false,
+                    match: null,
+                    cmplt: false,
+                };
+            }
+            
+            [MTD_W_RET](match, cmplt) {
+                let s = this[PL_W_STAT];
+                s.done = true;
+                s.match = match;
+                s.cmplt = cmplt;
+            }
+            
+            [MTD_W_INIT_STEP](mode) {
+                let smname = 'step_' + mode;
+                let mtd;
+                if(this[smname] instanceof Function) {
+                    mtd = this[smname];
+                } else {
+                    mtd = this.step_fast;
+                }
+                this.step = mtd;
             }
             
             get done() {
                 return this[PL_W_CUR].length === 0;
+            }
+            
+            step_fast() {
+                let cseq = this[PL_W_CUR];
+                let [nd, varr] = cseq[0];
+                if(varr.length === 0) {
+                    this[MTD_W_RET](nd, true);
+                    cseq.shift();
+                    return;
+                }
+                let v = varr.pop();
+                let nxt = nd.next(v);
+                if(nxt === KEY_K_LOOPBACK) {
+                    return;
+                } else if(nxt) {
+                    cseq[0] = [nxt, varr];
+                } else {
+                    this[MTD_W_RET](null, false);
+                    cseq.shift();
+                }
+            }
+            
+            [MTD_W_STRIP_VSET](nd, vset) {
+                let nvset = [],
+                    evset = [];
+                for(let v of vset) {
+                    let nxt = nd.next(v);
+                    if(nxt === KEY_K_LOOPBACK) {
+                        continue;
+                    } else if(nxt) {
+                        nvset.push(v);
+                    } else {
+                        evset.push(v);
+                    }
+                }
+                return [nvset, evset];
             }
             
             step() {
