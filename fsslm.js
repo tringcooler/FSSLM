@@ -2,6 +2,9 @@ const FSSLM = (()=> {
     
     const [
     
+        PL_MA_SRC, PL_MA_MSK,
+        PR_MA_I0, PR_MA_I1,
+    
         PR_N_VSET,
         FLG_N_VALID,
         
@@ -12,6 +15,38 @@ const FSSLM = (()=> {
             yield Symbol();
         }
     })();
+    
+    class c_masked_arr {
+            
+        constructor(src) {
+            this[PL_MA_SRC] = src;
+            if(src.length > 52) {
+                this[PR_MA_I0] = 0n;
+                this[PR_MA_I1] = 1n;
+            } else {
+                this[PR_MA_I0] = 0;
+                this[PR_MA_I1] = 1;
+            }
+            this[PL_MA_MSK] = this[PR_MA_I0];
+        }
+        
+        *coiter() {
+            let src = this[PL_MA_SRC];
+            let msk = this[PL_MA_MSK];
+            let v0 = this[PR_MA_I0];
+            let v1 = this[PR_MA_I1];
+            for(let i = v0; i < src.length; i++) {
+                let m = ((msk >> i) & v1);
+                if(m) continue;
+                let v = src[i];
+                let comsk = (msk | (v1 << i));
+                let coarr = new c_masked_arr(src);
+                coarr[PL_MA_MSK] = comsk;
+                yield [v, coarr];
+            }
+        }
+        
+    }
     
     const meta_fsslm = (mapops) => {
         
@@ -89,25 +124,27 @@ const FSSLM = (()=> {
             }
             
             [MTD_W_STRIP_VSET](nd, varr) {
-                let nvarr = [],
+                let lvarr = [],
+                    nvarr = [],
                     evarr = [];
                 for(let v of varr) {
                     let nxt = nd.next(v);
                     if(nxt === KEY_K_LOOPBACK) {
-                        continue;
+                        lvarr.push(v);
                     } else if(nxt) {
                         nvarr.push(v);
                     } else {
                         evarr.push(v);
                     }
                 }
-                return [nvarr, evarr];
+                return [lvarr, nvarr, evarr];
             }
             
-            step() {
-                let [nd, vset] = this[PL_W_CUR].shift();
-                let uniq = this[FLG_W_UNIQ];
-                let has_nxt = false;
+            step_full() {
+                let [nd, varr] = this[PL_W_CUR].shift();
+                let [lvarr, nvarr, evarr] = this[MTD_W_STRIP_VSET](nd, varr);
+                
+                
                 for(let v of setops.iter(vset)) {
                     let cv = setops.coset(vset, v);
                     let nxt = nd.next(v);
@@ -147,6 +184,8 @@ const FSSLM = (()=> {
         
     };
     
-    return {};
+    return {
+        ma: c_masked_arr,
+    };
     
 })();
