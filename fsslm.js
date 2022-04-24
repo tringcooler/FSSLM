@@ -41,15 +41,14 @@ const FSSLM = (()=> {
             
             [MTD_W_INIT_STAT]() {
                 this[PL_W_STAT] = {
-                    done: false,
                     match: null,
                     cmplt: false,
                 };
             }
             
             [MTD_W_RET](match, cmplt) {
+                //assert(this.done);
                 let s = this[PL_W_STAT];
-                s.done = true;
                 s.match = match;
                 s.cmplt = cmplt;
             }
@@ -73,8 +72,8 @@ const FSSLM = (()=> {
                 let cseq = this[PL_W_CUR];
                 let [nd, varr] = cseq[0];
                 if(varr.length === 0) {
-                    this[MTD_W_RET](nd, true);
                     cseq.shift();
+                    this[MTD_W_RET](nd, true);
                     return;
                 }
                 let v = varr.pop();
@@ -84,25 +83,25 @@ const FSSLM = (()=> {
                 } else if(nxt) {
                     cseq[0] = [nxt, varr];
                 } else {
-                    this[MTD_W_RET](null, false);
                     cseq.shift();
+                    this[MTD_W_RET](null, false);
                 }
             }
             
-            [MTD_W_STRIP_VSET](nd, vset) {
-                let nvset = [],
-                    evset = [];
-                for(let v of vset) {
+            [MTD_W_STRIP_VSET](nd, varr) {
+                let nvarr = [],
+                    evarr = [];
+                for(let v of varr) {
                     let nxt = nd.next(v);
                     if(nxt === KEY_K_LOOPBACK) {
                         continue;
                     } else if(nxt) {
-                        nvset.push(v);
+                        nvarr.push(v);
                     } else {
-                        evset.push(v);
+                        evarr.push(v);
                     }
                 }
-                return [nvset, evset];
+                return [nvarr, evarr];
             }
             
             step() {
