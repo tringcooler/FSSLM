@@ -16,6 +16,15 @@ const FSSLM = (()=> {
         }
     })();
     
+    const sparse_popcnt = (v, v1 = 1) => {
+        let c = 0;
+        while(v) {
+            v &= v - v1;
+            c ++;
+        }
+        return c
+    };
+    
     class c_masked_arr {
             
         constructor(src) {
@@ -32,26 +41,7 @@ const FSSLM = (()=> {
         }
         
         get length() {
-            let l = this[PR_MA_LEN];
-            if(l === null) {
-                let src = this[PL_MA_SRC];
-                l = src.length;
-                let v0 = this[MTD_MA_INT](0);
-                let v1 = this[MTD_MA_INT](1);
-                let msk = this[PR_MA_MSK];
-                for(let i = v0; i < src.length; i++) {
-                    // must use == . 0 !== 0n but 0 == 0n .
-                    if(msk == 0) {
-                        break;
-                    }
-                    if(msk & v1) {
-                        l --;
-                    }
-                    msk >>= v1;
-                }
-                this[PR_MA_LEN] = l;
-            }
-            return l;
+            return this[PR_MA_LEN];
         }
         
         [MTD_MA_INT](v) {
@@ -74,7 +64,7 @@ const FSSLM = (()=> {
                 let comsk = (msk | (v1 << i));
                 let coarr = new c_masked_arr(src);
                 coarr[PR_MA_MSK] = comsk;
-                coarr[PR_MA_LEN] = this.length - 1;
+                coarr[PR_MA_LEN] = this[PR_MA_LEN] - 1;
                 yield [v, coarr];
             }
         }
@@ -84,8 +74,10 @@ const FSSLM = (()=> {
             if(src !== dst[PL_MA_SRC]) {
                 throw Error('merge with different sources');
             }
-            this[PR_MA_MSK] |= dst[PR_MA_MSK];
-            this[PR_MA_LEN] = null;
+            let smsk = this[PR_MA_MSK];
+            let dmsk = dst[PR_MA_MSK];
+            this[PR_MA_MSK] = (smsk | dmsk);
+            this[PR_MA_LEN] -= sparse_popcnt(~smsk & dmsk, this[MTD_MA_INT](1));
         }
         
     }
@@ -204,8 +196,14 @@ const FSSLM = (()=> {
                 let strp_wcnt = wcnt + cnt_looped;
                 if(cnt_missed === 0) {
                     let nl = nd.length;
-                    //let vl = strp_wcnt + ;
-                    //if( > ) 
+                    let vl = strp_wcnt + strp_varr.length;
+                    if(nl > vl) {
+                        
+                    } else if(nl < vl) {
+                        
+                    } else {
+                        
+                    }
                 } else {
                 }
                 
