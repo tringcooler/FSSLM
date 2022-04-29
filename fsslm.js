@@ -3,7 +3,7 @@ const FSSLM = (()=> {
     const [
     
         PL_MA_SRC, PL_MA_MSK,
-        PR_MA_I0, PR_MA_I1,
+        MTD_MA_INT,
     
         PR_N_VSET,
         FLG_N_VALID,
@@ -20,21 +20,22 @@ const FSSLM = (()=> {
             
         constructor(src) {
             this[PL_MA_SRC] = src;
-            if(src.length > 52) {
-                this[PR_MA_I0] = 0n;
-                this[PR_MA_I1] = 1n;
+            this[PL_MA_MSK] = this[MTD_MA_INT](0);
+        }
+        
+        [MTD_MA_INT](v) {
+            if(this[PL_MA_SRC].length > 52) {
+                return BigInt(v);
             } else {
-                this[PR_MA_I0] = 0;
-                this[PR_MA_I1] = 1;
+                return v;
             }
-            this[PL_MA_MSK] = this[PR_MA_I0];
         }
         
         *coiter() {
             let src = this[PL_MA_SRC];
             let msk = this[PL_MA_MSK];
-            let v0 = this[PR_MA_I0];
-            let v1 = this[PR_MA_I1];
+            let v0 = this[MTD_MA_INT](0);
+            let v1 = this[MTD_MA_INT](1);
             for(let i = v0; i < src.length; i++) {
                 let m = ((msk >> i) & v1);
                 if(m) continue;
@@ -44,6 +45,16 @@ const FSSLM = (()=> {
                 coarr[PL_MA_MSK] = comsk;
                 yield [v, coarr];
             }
+        }
+        
+        merge(dst) {
+            let src = this[PL_MA_SRC];
+            if(src !== dst[PL_MA_SRC]) {
+                throw Error('merge with different sources');
+            }
+            let r = new c_masked_arr(src);
+            r[PL_MA_MSK] = (this[PL_MA_MSK] | dst[PL_MA_MSK]);
+            return r;
         }
         
     }
@@ -68,7 +79,7 @@ const FSSLM = (()=> {
         class c_ss_walker {
             
             constructor(start, varr) {
-                this[PL_W_CUR] = [[start, varr]];
+                this[PL_W_CUR] = [[start, varr, null, null, 0]];
                 this[PL_W_END] = [];
                 this[PL_W_WLK] = new Set();
                 this[MTD_W_INIT_STAT]();
@@ -102,7 +113,7 @@ const FSSLM = (()=> {
             
             step() {
                 let cseq = this[PL_W_CUR];
-                let [nd, varr] = cseq[0];
+                let [nd, varr, pnd, pkv, wcnt] = cseq[0];
                 if(varr.length === 0) {
                     cseq.shift();
                     this[MTD_W_RET](nd, true);
@@ -111,9 +122,10 @@ const FSSLM = (()=> {
                 let v = varr.pop();
                 let nxt = nd.next(v);
                 if(nxt === KEY_K_LOOPBACK) {
+                    cseq[0][4] += 1;
                     return;
                 } else if(nxt) {
-                    cseq[0] = [nxt, varr];
+                    cseq[0] = [nxt, varr, nd, v, wcnt + 1];
                 } else {
                     cseq.shift();
                     this[MTD_W_RET](null, false);
