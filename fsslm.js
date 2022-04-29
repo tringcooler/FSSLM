@@ -126,7 +126,7 @@ const FSSLM = (()=> {
                 let v = varr.pop();
                 let nxt = nd.next(v);
                 if(nxt === KEY_K_LOOPBACK) {
-                    cseq[0][4] += 1;
+                    cseq[0][4] ++;
                     return;
                 } else if(nxt) {
                     cseq[0] = [nxt, varr, nd, v, wcnt + 1];
@@ -145,25 +145,28 @@ const FSSLM = (()=> {
             }
             
             [MTD_W_STRIP_VARR](nd, varr) {
-                let looped = [],
-                    hit = [],
-                    missed = [];
+                let rvarr = varr.clone();
+                let cnt_looped = 0,
+                    cnt_hit = 0,
+                    cnt_missed = 0;
                 for(let [v, co] of varr.coiter()) {
                     let nxt = nd.next(v);
                     if(nxt === KEY_K_LOOPBACK) {
-                        looped.push([v, co]);
+                        cnt_looped ++;
+                        rvarr.merge(co);
                     } else if(nxt) {
-                        hit.push([v, co, nxt]);
+                        cnt_hit ++;
                     } else {
-                        missed.push([v, co]);
+                        cnt_missed ++;
                     }
                 }
-                return [looped, hit, missed];
+                return [rvarr, cnt_looped, cnt_hit, cnt_missed];
             }
             
-            step_full() {
-                let [nd, varr] = this[PL_W_CUR].shift();
-                let [lvarr, nvarr, evarr] = this[MTD_W_STRIP_VSET](nd, varr);
+            step() {
+                let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
+                let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VSET](nd, varr);
+                
                 
                 
                 for(let v of setops.iter(vset)) {
