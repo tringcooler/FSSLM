@@ -23,6 +23,12 @@ const FSSLM = (()=> {
             this[PL_MA_MSK] = this[MTD_MA_INT](0);
         }
         
+        clone() {
+            let r = new c_masked_arr(this[PL_MA_SRC]);
+            r[PL_MA_MSK] = this[PL_MA_MSK];
+            return r;
+        }
+        
         [MTD_MA_INT](v) {
             if(this[PL_MA_SRC].length > 52) {
                 return BigInt(v);
@@ -52,9 +58,7 @@ const FSSLM = (()=> {
             if(src !== dst[PL_MA_SRC]) {
                 throw Error('merge with different sources');
             }
-            let r = new c_masked_arr(src);
-            r[PL_MA_MSK] = (this[PL_MA_MSK] | dst[PL_MA_MSK]);
-            return r;
+            this[PL_MA_MSK] |= dst[PL_MA_MSK];
         }
         
     }
