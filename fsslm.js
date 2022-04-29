@@ -2,7 +2,7 @@ const FSSLM = (()=> {
     
     const [
     
-        PL_MA_SRC, PL_MA_MSK,
+        PL_MA_SRC, PR_MA_MSK, PR_MA_LEN,
         MTD_MA_INT,
     
         PR_N_VSET,
@@ -20,13 +20,38 @@ const FSSLM = (()=> {
             
         constructor(src) {
             this[PL_MA_SRC] = src;
-            this[PL_MA_MSK] = this[MTD_MA_INT](0);
+            this[PR_MA_MSK] = this[MTD_MA_INT](0);
+            this[PR_MA_LEN] = src.length;
         }
         
         clone() {
             let r = new c_masked_arr(this[PL_MA_SRC]);
-            r[PL_MA_MSK] = this[PL_MA_MSK];
+            r[PR_MA_MSK] = this[PR_MA_MSK];
+            r[PR_MA_LEN] = this[PR_MA_LEN];
             return r;
+        }
+        
+        get length() {
+            let l = this[PR_MA_LEN];
+            if(l === null) {
+                let src = this[PL_MA_SRC];
+                l = src.length;
+                let v0 = this[MTD_MA_INT](0);
+                let v1 = this[MTD_MA_INT](1);
+                let msk = this[PR_MA_MSK];
+                for(let i = v0; i < src.length; i++) {
+                    // must use == . 0 !== 0n but 0 == 0n .
+                    if(msk == 0) {
+                        break;
+                    }
+                    if(msk & v1) {
+                        l --;
+                    }
+                    msk >>= v1;
+                }
+                this[PR_MA_LEN] = l;
+            }
+            return l;
         }
         
         [MTD_MA_INT](v) {
@@ -39,7 +64,7 @@ const FSSLM = (()=> {
         
         *coiter() {
             let src = this[PL_MA_SRC];
-            let msk = this[PL_MA_MSK];
+            let msk = this[PR_MA_MSK];
             let v0 = this[MTD_MA_INT](0);
             let v1 = this[MTD_MA_INT](1);
             for(let i = v0; i < src.length; i++) {
@@ -48,7 +73,8 @@ const FSSLM = (()=> {
                 let v = src[i];
                 let comsk = (msk | (v1 << i));
                 let coarr = new c_masked_arr(src);
-                coarr[PL_MA_MSK] = comsk;
+                coarr[PR_MA_MSK] = comsk;
+                coarr[PR_MA_LEN] = this.length - 1;
                 yield [v, coarr];
             }
         }
@@ -58,7 +84,8 @@ const FSSLM = (()=> {
             if(src !== dst[PL_MA_SRC]) {
                 throw Error('merge with different sources');
             }
-            this[PL_MA_MSK] |= dst[PL_MA_MSK];
+            this[PR_MA_MSK] |= dst[PR_MA_MSK];
+            this[PR_MA_LEN] = null;
         }
         
     }
@@ -71,6 +98,14 @@ const FSSLM = (()=> {
                 this[PR_N_VSET] = new set(vset);
                 this[FLG_N_VALID] = valid;
                 this[PL_N_NXT] = mapops.new();
+            }
+            
+            get length() {
+                return mapops.size(this[PL_N_NXT]);
+            }
+            
+            get valid() {
+                return this[FLG_N_VALID];
             }
             
             next(v) {
@@ -166,7 +201,17 @@ const FSSLM = (()=> {
             step() {
                 let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
                 let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VSET](nd, varr);
+                let strp_wcnt = wcnt + cnt_looped;
+                if(cnt_missed === 0) {
+                    let nl = nd.length;
+                    //let vl = strp_wcnt + ;
+                    //if( > ) 
+                } else {
+                }
                 
+                for(let [v, co] of strp_varr.coiter()) {
+                    
+                }
                 
                 
                 for(let v of setops.iter(vset)) {
