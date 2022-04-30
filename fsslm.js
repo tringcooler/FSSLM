@@ -80,6 +80,13 @@ const FSSLM = (()=> {
             this[PR_MA_LEN] -= sparse_popcnt(~smsk & dmsk, this[MTD_MA_INT](1));
         }
         
+        inverse() {
+            let v1 = this[MTD_MA_INT](1);
+            let slen = this[PL_MA_SRC].length;
+            this[PR_MA_MSK] = ~this[PR_MA_MSK] & ((v1 << this[MTD_MA_INT](slen)) - v1);
+            this[PR_MA_LEN] = slen - this[PR_MA_LEN];
+        }
+        
     }
     
     const meta_fsslm = (mapops) => {
