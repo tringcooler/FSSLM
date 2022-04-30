@@ -193,16 +193,28 @@ const FSSLM = (()=> {
             step() {
                 let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
                 let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VSET](nd, varr);
+                //assert(strp_varr.length === cnt_hit + cnt_missed);
                 let strp_wcnt = wcnt + cnt_looped;
                 if(cnt_missed === 0) {
                     let nl = nd.length;
-                    let vl = strp_wcnt + strp_varr.length;
-                    if(nl > vl) {
-                        
-                    } else if(nl < vl) {
-                        
+                    //assert(nl >= strp_wcnt);
+                    if(nl > strp_wcnt) {
+                        if(cnt_hit > 0) {
+                            if(strp_wcnt > 0) {
+                                // query ^ ndkey
+                            } else {
+                                // !query ^ ndkey
+                            }
+                        } else {
+                            // query < ndkey
+                        }
                     } else {
-                        
+                        //assert(nl === strp_wcnt);
+                        if(cnt_hit > 0) {
+                            // query > ndkey
+                        } else {
+                            // query == ndkey
+                        }
                     }
                 } else {
                 }
