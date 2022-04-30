@@ -200,11 +200,8 @@ const FSSLM = (()=> {
                     //assert(nl >= strp_wcnt);
                     if(nl > strp_wcnt) {
                         if(cnt_hit > 0) {
-                            if(strp_wcnt > 0) {
-                                // query ^ ndkey
-                            } else {
-                                // !query ^ ndkey
-                            }
+                            //assert(strp_wcnt > 0)
+                            // query ^ ndkey
                         } else {
                             // query < ndkey
                         }
