@@ -176,6 +176,7 @@ const FSSLM = (()=> {
             
             constructor(start, vset) {
                 super(start, new c_masked_arr([...vset]));
+                this[PL_W_NDINFO] = new Map();
             }
             
             [MTD_W_STRIP_VARR](nd, varr) {
@@ -197,10 +198,9 @@ const FSSLM = (()=> {
                 return [rvarr, cnt_looped, cnt_hit, cnt_missed];
             }
             
-            [MTD_W_PARSE_NODE]() {
+            [MTD_W_PARSE_NODE_INFO](nd, varr) {
                 let qinfo = {};
                 let ndinfo = {query: qinfo};
-                let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
                 let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VSET](nd, varr);
                 //assert(strp_varr.length === cnt_hit + cnt_missed);
                 let strp_wcnt = wcnt + cnt_looped;
@@ -209,10 +209,22 @@ const FSSLM = (()=> {
                 qinfo.less = (nd.length > strp_wcnt);
                 qinfo.more = (cnt_hit + cnt_missed > 0);
                 qinfo.missed = (cnt_missed > 0);
+                ndinfo.varr = strp_varr;
+                return ndinfo;
+            }
+            
+            [MTD_W_GET_NODE_INFO](nd, varr) {
+                let nds = this[PL_W_NDINFO];
+                let ndinfo = nds.get(nd);
+                if(!ndinfo) {
+                    ndinfo = this[MTD_W_PARSE_NODE](nd, varr);
+                    nds.set(nd, ndinfo);
+                }
                 return ndinfo;
             }
             
             step() {
+                let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
                 
                 for(let [v, co] of strp_varr.coiter()) {
                     
