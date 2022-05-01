@@ -210,6 +210,7 @@ const FSSLM = (()=> {
                 qinfo.more = (cnt_hit + cnt_missed > 0);
                 qinfo.missed = (cnt_missed > 0);
                 ndinfo.varr = strp_varr;
+                ndinfo.walked = false;
                 return ndinfo;
             }
             
@@ -225,7 +226,35 @@ const FSSLM = (()=> {
             
             step() {
                 let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
-                
+                let ndinfo = this[MTD_W_GET_NODE_INFO](nd, varr);
+                qinfo = ndinfo.query;
+                if(qinfo.less) {
+                    if(qinfo.more) {
+                        //q ^ n
+                        if(qinfo.missed) {
+                        } else {
+                        }
+                    } else {
+                        // q < n
+                        return;
+                    }
+                } else {
+                    if(qinfo.more) {
+                        // q > n
+                        if(qinfo.missed) {
+                        } else {
+                        }
+                    } else {
+                        // q == n
+                        this[MTD_W_RET](nd, true);
+                        return;
+                    }
+                }
+                if(ndinfo.walked) {
+                    return;
+                }
+                ndinfo.walked = true;
+                let strp_varr = ndinfo.varr
                 for(let [v, co] of strp_varr.coiter()) {
                     
                 }
