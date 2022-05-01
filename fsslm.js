@@ -95,10 +95,10 @@ const FSSLM = (()=> {
         
         class c_ss_node {
             
-            constructor(vset, valid) {
+            constructor(vset) {
                 this[PR_N_VSET] = new set(vset);
-                this[FLG_N_VALID] = valid;
                 this[PL_N_NXT] = mapops.new();
+                this[FLG_N_VALID] = false;
             }
             
             get length() {
@@ -107,6 +107,11 @@ const FSSLM = (()=> {
             
             get valid() {
                 return this[FLG_N_VALID];
+            }
+            
+            reg() {
+                this[FLG_N_VALID] || (this[FLG_N_VALID] = true);
+                return this;
             }
             
             next(v) {
@@ -120,6 +125,24 @@ const FSSLM = (()=> {
             
             constructor(start, varr) {
                 this[PL_W_CUR] = [[start, varr, null, null, 0]];
+            }
+            
+            get done() {
+                return this[PL_W_CUR].length === 0;
+            }
+            
+            walk() {
+                while(!this.done) {
+                    this.step();
+                }
+            }
+            
+        }
+        
+        class c_ss_walker_get extends c_ss_walker {
+            
+            constructor(start, vset) {
+                super(start, [...vset]);
                 this[MTD_W_INIT_STAT]();
             }
             
@@ -135,18 +158,6 @@ const FSSLM = (()=> {
                 let s = this[PL_W_STAT];
                 s.match = match;
                 s.cmplt = cmplt;
-            }
-            
-            get done() {
-                return this[PL_W_CUR].length === 0;
-            }
-            
-        }
-        
-        class c_ss_walker_fast extends c_ss_walker {
-            
-            constructor(start, vset) {
-                super(start, [...vset]);
             }
             
             step() {
@@ -172,7 +183,7 @@ const FSSLM = (()=> {
             
         }
         
-        class c_ss_walker_full extends c_ss_walker {
+        class c_ss_walker_add extends c_ss_walker {
             
             constructor(start, vset) {
                 super(start, new c_masked_arr([...vset]));
@@ -245,7 +256,7 @@ const FSSLM = (()=> {
                 } else {
                     if(!ndinfo.qmore) {
                         // q == n
-                        this[MTD_W_RET](nd, true);
+                        nd.reg();
                         return;
                     }
                     // q > n
@@ -257,6 +268,7 @@ const FSSLM = (()=> {
                 let strp_wcnt = ndinfo.wcnt;
                 for(let [v, co] of strp_varr.coiter()) {
                     let nxt = nd.next(v);
+                    //assert(nxt !== KEY_K_LOOPBACK);
                     if(nxt) {
                         
                     } else {
@@ -266,12 +278,6 @@ const FSSLM = (()=> {
                     this[PL_W_CUR].push([
                         nxt, co, nd, v, strp_wcnt + 1,
                     ]);
-                }
-            }
-            
-            walk() {
-                while(!this.done) {
-                    this.step();
                 }
             }
             
