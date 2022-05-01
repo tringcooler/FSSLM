@@ -198,34 +198,17 @@ const FSSLM = (()=> {
             }
             
             [MTD_W_PARSE_NODE]() {
-                let ndinfo = {};
+                let qinfo = {};
+                let ndinfo = {query: qinfo};
                 let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
                 let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VSET](nd, varr);
                 //assert(strp_varr.length === cnt_hit + cnt_missed);
                 let strp_wcnt = wcnt + cnt_looped;
-                let nl = nd.length;
-                let vl = cnt_hit + cnt_missed;
-                //assert(nl >= strp_wcnt);
-                if(nl > strp_wcnt) {
-                    //assert(strp_wcnt > 0);
-                    if(vl > 0) {
-                        // query ^ ndkey
-                        ndinfo.query = KEY_QN_CROSS;
-                    } else {
-                        // query < ndkey
-                        ndinfo.query = KEY_QN_LESS;
-                    }
-                } else {
-                    //assert(nl === strp_wcnt);
-                    if(vl > 0) {
-                        // query > ndkey
-                        ndinfo.query = KEY_QN_MORE;
-                    } else {
-                        // query == ndkey
-                        ndinfo.query = KEY_QN_EQUAL;
-                    }
-                }
-                ndinfo.missed = (cnt_missed > 0);
+                //assert(nd.length >= strp_wcnt);
+                //assert(strp_wcnt > 0 || strp_wcnt === nd.length === 0);
+                qinfo.less = (nd.length > strp_wcnt);
+                qinfo.more = (cnt_hit + cnt_missed > 0);
+                qinfo.missed = (cnt_missed > 0);
                 return ndinfo;
             }
             
