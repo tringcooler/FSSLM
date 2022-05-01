@@ -197,31 +197,39 @@ const FSSLM = (()=> {
                 return [rvarr, cnt_looped, cnt_hit, cnt_missed];
             }
             
-            step() {
+            [MTD_W_PARSE_NODE]() {
+                let ndinfo = {};
                 let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
                 let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VSET](nd, varr);
                 //assert(strp_varr.length === cnt_hit + cnt_missed);
                 let strp_wcnt = wcnt + cnt_looped;
-                if(cnt_missed === 0) {
-                    let nl = nd.length;
-                    //assert(nl >= strp_wcnt);
-                    if(nl > strp_wcnt) {
-                        if(cnt_hit > 0) {
-                            //assert(strp_wcnt > 0)
-                            // query ^ ndkey
-                        } else {
-                            // query < ndkey
-                        }
+                let nl = nd.length;
+                let vl = cnt_hit + cnt_missed;
+                //assert(nl >= strp_wcnt);
+                if(nl > strp_wcnt) {
+                    //assert(strp_wcnt > 0);
+                    if(vl > 0) {
+                        // query ^ ndkey
+                        ndinfo.query = KEY_QN_CROSS;
                     } else {
-                        //assert(nl === strp_wcnt);
-                        if(cnt_hit > 0) {
-                            // query > ndkey
-                        } else {
-                            // query == ndkey
-                        }
+                        // query < ndkey
+                        ndinfo.query = KEY_QN_LESS;
                     }
                 } else {
+                    //assert(nl === strp_wcnt);
+                    if(vl > 0) {
+                        // query > ndkey
+                        ndinfo.query = KEY_QN_MORE;
+                    } else {
+                        // query == ndkey
+                        ndinfo.query = KEY_QN_EQUAL;
+                    }
                 }
+                ndinfo.missed = (cnt_missed > 0);
+                return ndinfo;
+            }
+            
+            step() {
                 
                 for(let [v, co] of strp_varr.coiter()) {
                     
