@@ -199,16 +199,14 @@ const FSSLM = (()=> {
             }
             
             [MTD_W_PARSE_NODE_INFO](nd, varr) {
-                let qinfo = {};
-                let ndinfo = {query: qinfo};
+                let ndinfo = {};
                 let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VSET](nd, varr);
                 //assert(strp_varr.length === cnt_hit + cnt_missed);
                 let strp_wcnt = wcnt + cnt_looped;
                 //assert(nd.length >= strp_wcnt);
                 //assert(strp_wcnt > 0 || strp_wcnt === nd.length === 0);
-                qinfo.less = (nd.length > strp_wcnt);
-                qinfo.more = (cnt_hit + cnt_missed > 0);
-                qinfo.missed = (cnt_missed > 0);
+                ndinfo.qless = (nd.length > strp_wcnt);
+                ndinfo.qmore = (cnt_hit + cnt_missed > 0);
                 ndinfo.varr = strp_varr;
                 ndinfo.wcnt = strp_wcnt;
                 ndinfo.walked = false;
@@ -237,17 +235,15 @@ const FSSLM = (()=> {
                 let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
                 let ndinfo = this[MTD_W_GET_NODE_INFO](nd, varr);
                 let strp_varr = ndinfo.varr;
-                let strp_wcnt = ndinfo.wcnt;
-                let qinfo = ndinfo.query;
-                if(qinfo.less) {
+                if(ndinfo.qless) {
                     this[MTD_W_INSERT_NODE](nd, pnd, pkv, strp_varr);
-                    if(!qinfo.more) {
+                    if(!ndinfo.qmore) {
                         // q < n
                         return;
                     }
                     //q ^ n
                 } else {
-                    if(!qinfo.more) {
+                    if(!ndinfo.qmore) {
                         // q == n
                         this[MTD_W_RET](nd, true);
                         return;
@@ -258,6 +254,7 @@ const FSSLM = (()=> {
                     return;
                 }
                 ndinfo.walked = true;
+                let strp_wcnt = ndinfo.wcnt;
                 for(let [v, co] of strp_varr.coiter()) {
                     let nxt = nd.next(v);
                     if(nxt) {
