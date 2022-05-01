@@ -78,6 +78,7 @@ const FSSLM = (()=> {
             let dmsk = dst[PR_MA_MSK];
             this[PR_MA_MSK] = (smsk | dmsk);
             this[PR_MA_LEN] -= sparse_popcnt(~smsk & dmsk, this[MTD_MA_INT](1));
+            return this;
         }
         
         inverse() {
@@ -85,6 +86,7 @@ const FSSLM = (()=> {
             let slen = this[PL_MA_SRC].length;
             this[PR_MA_MSK] = ~this[PR_MA_MSK] & ((v1 << this[MTD_MA_INT](slen)) - v1);
             this[PR_MA_LEN] = slen - this[PR_MA_LEN];
+            return this;
         }
         
     }
@@ -118,8 +120,6 @@ const FSSLM = (()=> {
             
             constructor(start, varr) {
                 this[PL_W_CUR] = [[start, varr, null, null, 0]];
-                this[PL_W_END] = [];
-                this[PL_W_WLK] = new Set();
                 this[MTD_W_INIT_STAT]();
             }
             
@@ -210,6 +210,7 @@ const FSSLM = (()=> {
                 qinfo.more = (cnt_hit + cnt_missed > 0);
                 qinfo.missed = (cnt_missed > 0);
                 ndinfo.varr = strp_varr;
+                ndinfo.wcnt = strp_wcnt;
                 ndinfo.walked = false;
                 return ndinfo;
             }
@@ -224,59 +225,51 @@ const FSSLM = (()=> {
                 return ndinfo;
             }
             
+            [MTD_W_INSERT_NODE](nnd, pnd, pkv, next_varr) {
+                let wlk_varr = next_varr.clone().inverse();
+            }
+            
+            [MTD_W_APPEND_NODE](nd, kv, next_varr) {
+                
+            }
+            
             step() {
                 let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
                 let ndinfo = this[MTD_W_GET_NODE_INFO](nd, varr);
-                qinfo = ndinfo.query;
+                let strp_varr = ndinfo.varr;
+                let strp_wcnt = ndinfo.wcnt;
+                let qinfo = ndinfo.query;
                 if(qinfo.less) {
-                    if(qinfo.more) {
-                        //q ^ n
-                        if(qinfo.missed) {
-                        } else {
-                        }
-                    } else {
+                    this[MTD_W_INSERT_NODE](nd, pnd, pkv, strp_varr);
+                    if(!qinfo.more) {
                         // q < n
                         return;
                     }
+                    //q ^ n
                 } else {
-                    if(qinfo.more) {
-                        // q > n
-                        if(qinfo.missed) {
-                        } else {
-                        }
-                    } else {
+                    if(!qinfo.more) {
                         // q == n
                         this[MTD_W_RET](nd, true);
                         return;
                     }
+                    // q > n
                 }
                 if(ndinfo.walked) {
                     return;
                 }
                 ndinfo.walked = true;
-                let strp_varr = ndinfo.varr
                 for(let [v, co] of strp_varr.coiter()) {
-                    
-                }
-                
-                
-                for(let v of setops.iter(vset)) {
-                    let cv = setops.coset(vset, v);
                     let nxt = nd.next(v);
                     if(nxt) {
-                        if(!this[PL_W_WLK].has(nxt)) {
-                            this[PL_W_CUR].push([nxt, cv]);
-                        }
-                        has_nxt = true;
+                        
+                    } else {
+                        // missed
+                        nxt = this[MTD_W_APPEND_NODE](nd, v, co);
                     }
-                    if(uniq) {
-                        break;
-                    }
+                    this[PL_W_CUR].push([
+                        nxt, co, nd, v, strp_wcnt + 1,
+                    ]);
                 }
-                if(!has_nxt) {
-                    this[PL_W_END].push([nd, vset]);
-                }
-                this[PL_W_WLK].add(nd);
             }
             
             walk() {
