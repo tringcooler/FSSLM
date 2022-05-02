@@ -5,10 +5,9 @@ const FSSLM = (()=> {
         PL_MA_SRC, PR_MA_MSK, PR_MA_LEN,
         MTD_MA_INT,
     
-        PR_N_VSET,
         FLG_N_VALID,
         
-        KEY_K_LOOPBACK,
+        KEY_ND_LOOPBACK,
     
     ] = (function*() {
         while(true) {
@@ -42,6 +41,10 @@ const FSSLM = (()=> {
         
         get length() {
             return this[PR_MA_LEN];
+        }
+        
+        get src() {
+            return this[PL_MA_SRC];
         }
         
         [MTD_MA_INT](v) {
@@ -95,8 +98,7 @@ const FSSLM = (()=> {
         
         class c_ss_node {
             
-            constructor(vset) {
-                this[PR_N_VSET] = new set(vset);
+            constructor() {
                 this[PL_N_NXT] = mapops.new();
                 this[FLG_N_VALID] = false;
             }
@@ -117,6 +119,19 @@ const FSSLM = (()=> {
             next(v) {
                 let nxt = mapops.get(this[PL_N_NXT], v);
                 return nxt ?? null;
+            }
+            
+            set_next(v, nnd) {
+                mapops.set(this[PL_N_NXT], v, nnd);
+            }
+            
+            set_loops(vset) {
+                let cnt = 0;
+                for(let v of vset) {
+                    this.set_next(v, KEY_ND_LOOPBACK);
+                    cnt ++;
+                }
+                return cnt;
             }
             
         }
@@ -170,7 +185,7 @@ const FSSLM = (()=> {
                 }
                 let v = varr.pop();
                 let nxt = nd.next(v);
-                if(nxt === KEY_K_LOOPBACK) {
+                if(nxt === KEY_ND_LOOPBACK) {
                     cseq[0][4] ++;
                     return;
                 } else if(nxt) {
@@ -188,6 +203,7 @@ const FSSLM = (()=> {
             constructor(start, vset) {
                 super(start, new c_masked_arr([...vset]));
                 this[PL_W_NDINFO] = new Map();
+                this[PR_W_DST_NODE] = null;
             }
             
             [MTD_W_STRIP_VARR](nd, varr) {
@@ -197,7 +213,7 @@ const FSSLM = (()=> {
                     cnt_missed = 0;
                 for(let [v, co] of varr.coiter()) {
                     let nxt = nd.next(v);
-                    if(nxt === KEY_K_LOOPBACK) {
+                    if(nxt === KEY_ND_LOOPBACK) {
                         cnt_looped ++;
                         rvarr.merge(co);
                     } else if(nxt) {
@@ -234,12 +250,37 @@ const FSSLM = (()=> {
                 return ndinfo;
             }
             
+            [MTD_W_NEW_NODE](loops_varr, valid, dstinfo) {
+                let nd = new c_ss_node();
+                let wcnt = nd.set_loops(loops_varr);
+                if(valid) {
+                    nd.reg();
+                }
+                let ndinfo = {};
+                ndinfo.new = true;
+                ndinfo.walked = false;
+                ndinfo.wcnt = wcnt;
+                Object.assign(ndinfo, dstinfo);
+                this[PL_W_NDINFO].set(nd, ndinfo);
+                return nd;
+            }
+            
             [MTD_W_INSERT_NODE](nnd, pnd, pkv, next_varr) {
                 let wlk_varr = next_varr.clone().inverse();
             }
             
             [MTD_W_APPEND_NODE](nd, kv, next_varr) {
-                
+                let apnd = this[PR_W_DST_NODE];
+                if(!apnd) {
+                    let src_varr = next_varr.src;
+                    apnd = this[MTD_W_NEW_NODE](src_varr, true, {
+                        qless: false,
+                        qmore: false,
+                    });
+                    this[PR_W_DST_NODE] = apnd;
+                }
+                //assert(!nd.next(kv));
+                nd.set_next(kv, apnd);
             }
             
             step() {
@@ -268,7 +309,7 @@ const FSSLM = (()=> {
                 let strp_wcnt = ndinfo.wcnt;
                 for(let [v, co] of strp_varr.coiter()) {
                     let nxt = nd.next(v);
-                    //assert(nxt !== KEY_K_LOOPBACK);
+                    //assert(nxt !== KEY_ND_LOOPBACK);
                     if(nxt) {
                         
                     } else {
