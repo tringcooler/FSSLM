@@ -311,14 +311,13 @@ const FSSLM = (()=> {
                     let nxt = nd.next(v);
                     //assert(nxt !== KEY_ND_LOOPBACK);
                     if(nxt) {
-                        
+                        this[PL_W_CUR].push([
+                            nxt, co, nd, v, strp_wcnt + 1,
+                        ]);                        
                     } else {
                         // missed
-                        nxt = this[MTD_W_APPEND_NODE](nd, v, co);
+                        this[MTD_W_APPEND_NODE](nd, v, co);
                     }
-                    this[PL_W_CUR].push([
-                        nxt, co, nd, v, strp_wcnt + 1,
-                    ]);
                 }
             }
             
