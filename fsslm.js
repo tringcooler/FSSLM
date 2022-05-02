@@ -100,11 +100,12 @@ const FSSLM = (()=> {
             
             constructor() {
                 this[PL_N_NXT] = mapops.new();
+                this[PR_N_LOOPCNT] = 0;
                 this[FLG_N_VALID] = false;
             }
             
             get length() {
-                return mapops.size(this[PL_N_NXT]);
+                return this[PR_N_LOOPCNT];
             }
             
             get valid() {
@@ -131,6 +132,7 @@ const FSSLM = (()=> {
                     this.set_next(v, KEY_ND_LOOPBACK);
                     cnt ++;
                 }
+                this[PR_N_LOOPCNT] += cnt;
                 return cnt;
             }
             
