@@ -15,6 +15,12 @@ const FSSLM = (()=> {
         }
     })();
     
+    const assert = c => {
+        if(!c) {
+            throw Error('assert error');
+        }
+    };
+    
     const sparse_popcnt = (v, v1 = 1) => {
         let c = 0;
         while(v) {
@@ -171,7 +177,7 @@ const FSSLM = (()=> {
             }
             
             [MTD_W_RET](match, cmplt) {
-                //assert(this.done);
+                assert(this.done);
                 let s = this[PL_W_STAT];
                 s.match = match;
                 s.cmplt = cmplt;
@@ -230,10 +236,10 @@ const FSSLM = (()=> {
             [MTD_W_PARSE_NODE_INFO](nd, varr) {
                 let ndinfo = {};
                 let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VSET](nd, varr);
-                //assert(strp_varr.length === cnt_hit + cnt_missed);
+                assert(strp_varr.length === cnt_hit + cnt_missed);
                 let strp_wcnt = wcnt + cnt_looped;
-                //assert(nd.length >= strp_wcnt);
-                //assert(strp_wcnt > 0 || strp_wcnt === nd.length === 0);
+                assert(nd.length >= strp_wcnt);
+                assert(strp_wcnt > 0 || strp_wcnt === nd.length === 0);
                 ndinfo.qless = (nd.length > strp_wcnt);
                 ndinfo.qmore = (cnt_hit + cnt_missed > 0);
                 ndinfo.varr = strp_varr;
@@ -281,7 +287,7 @@ const FSSLM = (()=> {
                     });
                     this[PR_W_DST_NODE] = apnd;
                 }
-                //assert(!nd.next(kv));
+                assert(!nd.next(kv));
                 nd.set_next(kv, apnd);
             }
             
@@ -311,7 +317,7 @@ const FSSLM = (()=> {
                 let strp_wcnt = ndinfo.wcnt;
                 for(let [v, co] of strp_varr.coiter()) {
                     let nxt = nd.next(v);
-                    //assert(nxt !== KEY_ND_LOOPBACK);
+                    assert(nxt !== KEY_ND_LOOPBACK);
                     if(nxt) {
                         this[PL_W_CUR].push([
                             nxt, co, nd, v, strp_wcnt + 1,
