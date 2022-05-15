@@ -354,10 +354,14 @@ const FSSLM = (()=> {
                     if(nxt) {
                         
                         if(sub_nd) {
+                            // relink
                             if(pkv === v) {
-                                //pkv in Q
+                                // pkv in Q
                                 relink_nd.set_next(pkv, sub_nd);
                             }
+                            
+                            // clone sub key
+                            sub_nd.set_next(v, nxt);
                         }
                         
                         this[PL_W_CUR].push([
