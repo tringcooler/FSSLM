@@ -252,6 +252,7 @@ const FSSLM = (()=> {
                 let nds = this[PL_W_NDINFO];
                 let ndinfo = nds.get(nd);
                 if(!ndinfo) {
+                    assert(varr);
                     ndinfo = this[MTD_W_PARSE_NODE](nd, varr);
                     nds.set(nd, ndinfo);
                 }
@@ -291,12 +292,49 @@ const FSSLM = (()=> {
                 nd.set_next(kv, apnd);
             }
             
+            [MTD_W_NEW_SUB_NODE](next_varr) {
+                let wlk_varr = next_varr.clone().inverse();
+                let nd = new c_ss_node();
+                let wcnt = nd.set_loops(wlk_varr);
+                let is_tar = (next_varr.length === 0);
+                if(is_tar) {
+                    nd.reg();
+                }
+                let ndinfo = {};
+                ndinfo.qless = false;
+                ndinfo.qmore = !is_tar;
+                ndinfo.varr = next_varr
+                ndinfo.wcnt = wcnt;
+                ndinfo.walked = false;
+                this[PL_W_NDINFO].set(nd, ndinfo);
+                return nd;
+            }
+            
+            [MTD_W_GET_SUB_NODE](par_ndinfo, next_varr) {
+                assert(!par_ndinfo.qmore === (next_varr.length === 0));
+                let nd = par_ndinfo.sub;
+                if(!nd) {
+                    nd = this[MTD_W_NEW_SUB_NODE](next_varr);
+                    par_ndinfo.sub = nd;
+                }
+                return nd;
+            }
+            
+            [MTD_W_RELINK_PREV](prv_nd, prv_key, cur_nd, cur_ndinfo) {
+                let prv_ndinfo = this[MTD_W_GET_NODE_INFO](prv_nd, null);
+                let sub_nd = cur_ndinfo.sub;
+                assert(sub_nd);
+                
+            }
+            
             step() {
                 let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
                 let ndinfo = this[MTD_W_GET_NODE_INFO](nd, varr);
                 let strp_varr = ndinfo.varr;
+                let sub_nd = null;
                 if(ndinfo.qless) {
-                    this[MTD_W_INSERT_NODE](nd, pnd, pkv, strp_varr);
+                    sub_nd = this[MTD_W_GET_SUB_NODE](ndinfo, strp_varr);
+                    this[MTD_W_RELINK_PREV](...);
                     if(!ndinfo.qmore) {
                         // q < n
                         return;
