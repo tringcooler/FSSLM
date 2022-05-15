@@ -320,21 +320,16 @@ const FSSLM = (()=> {
                 return nd;
             }
             
-            [MTD_W_RELINK_PREV](prv_nd, prv_key, cur_nd, cur_ndinfo) {
-                let prv_ndinfo = this[MTD_W_GET_NODE_INFO](prv_nd, null);
-                let sub_nd = cur_ndinfo.sub;
-                assert(sub_nd);
-                
-            }
-            
             step() {
                 let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
                 let ndinfo = this[MTD_W_GET_NODE_INFO](nd, varr);
                 let strp_varr = ndinfo.varr;
                 let sub_nd = null;
+                let relink_nd = null;
                 if(ndinfo.qless) {
                     sub_nd = this[MTD_W_GET_SUB_NODE](ndinfo, strp_varr);
-                    this[MTD_W_RELINK_PREV](...);
+                    let prv_ndinfo = this[MTD_W_GET_NODE_INFO](pnd, null);
+                    relink_nd = prv_ndinfo.sub ?? pnd;
                     if(!ndinfo.qmore) {
                         // q < n
                         return;
@@ -357,6 +352,14 @@ const FSSLM = (()=> {
                     let nxt = nd.next(v);
                     assert(nxt !== KEY_ND_LOOPBACK);
                     if(nxt) {
+                        
+                        if(sub_nd) {
+                            if(pkv === v) {
+                                //pkv in Q
+                                relink_nd.set_next(pkv, sub_nd);
+                            }
+                        }
+                        
                         this[PL_W_CUR].push([
                             nxt, co, nd, v, strp_wcnt + 1,
                         ]);                        
