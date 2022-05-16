@@ -389,6 +389,46 @@ const FSSLM = (()=> {
             
         }
         
+        class c_ss_walker_show extends c_ss_walker_add {
+            
+            constructor(start, vset) {
+                super(start, vset);
+                this[PR_W_REPR] = '';
+            }
+            
+            [MTD_W_PARSE_NODE_INFO](nd, varr, wcnt) {
+                let ndinfo = super[MTD_W_PARSE_NODE_INFO](nd, varr, wcnt);
+            }
+            
+            write(s) {
+                this[PR_W_REPR] += s;
+            }
+            
+            newline() {
+                this[PR_W_REPR] += '\n';
+            }
+            
+            step() {
+                let [nd, varr, pnd, pkv, wcnt, indents, isfirst] = this[PL_W_CUR].shift();
+                indents = indents ?? [];
+                isfirst = isfirst ?? true;
+                let ndinfo = this[MTD_W_GET_NODE_INFO](nd, varr, wcnt);
+                let strp_varr = ndinfo.varr;
+                let set_varr = strp_varr.clone().inverse();
+                if(!isfirst) {
+                    for(let idt of indents) {
+                        this.write(' '.repeat(idt - 1) + '|');
+                    }
+                }
+                let repr_nd = '--nd:' + set_varr;
+                this.write(repr_nd);
+                if(ndinfo.walked) {
+                    return;
+                }
+            }
+            
+        }
+        
         class c_ss_graph {
             
             constructor() {
@@ -444,6 +484,7 @@ const FSSLM = (()=> {
     const test_sets = (sets) => {
         let fsslm = new (meta_fsslm(str_mapops))();
         let wlks = sets.map(s => fsslm.test_add_walker(s));
+        wlks.fsslm = fsslm;
         wlks.run = () => {
             for(let i = 0; i < wlks.length; i++) {
                 let wlk = wlks[i];
