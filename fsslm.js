@@ -261,9 +261,9 @@ const FSSLM = (()=> {
                 return [rvarr, cnt_looped, cnt_hit, cnt_missed];
             }
             
-            [MTD_W_PARSE_NODE_INFO](nd, varr) {
+            [MTD_W_PARSE_NODE_INFO](nd, varr, wcnt) {
                 let ndinfo = {};
-                let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VSET](nd, varr);
+                let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VARR](nd, varr);
                 assert(strp_varr.length === cnt_hit + cnt_missed);
                 let strp_wcnt = wcnt + cnt_looped;
                 assert(nd.length >= strp_wcnt);
@@ -276,12 +276,12 @@ const FSSLM = (()=> {
                 return ndinfo;
             }
             
-            [MTD_W_GET_NODE_INFO](nd, varr) {
+            [MTD_W_GET_NODE_INFO](nd, varr, wcnt) {
                 let nds = this[PL_W_NDINFO];
                 let ndinfo = nds.get(nd);
                 if(!ndinfo) {
                     assert(varr);
-                    ndinfo = this[MTD_W_PARSE_NODE](nd, varr);
+                    ndinfo = this[MTD_W_PARSE_NODE_INFO](nd, varr, wcnt);
                     nds.set(nd, ndinfo);
                 }
                 return ndinfo;
@@ -333,13 +333,13 @@ const FSSLM = (()=> {
             
             step() {
                 let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
-                let ndinfo = this[MTD_W_GET_NODE_INFO](nd, varr);
+                let ndinfo = this[MTD_W_GET_NODE_INFO](nd, varr, wcnt);
                 let strp_varr = ndinfo.varr;
                 let sub_nd = null;
                 let relink_nd = null;
                 if(ndinfo.qless) {
                     sub_nd = this[MTD_W_GET_SUB_NODE](ndinfo, nd, strp_varr);
-                    let prv_ndinfo = this[MTD_W_GET_NODE_INFO](pnd, null);
+                    let prv_ndinfo = this[MTD_W_GET_NODE_INFO](pnd, null, null);
                     relink_nd = prv_ndinfo.sub ?? pnd;
                     if(!ndinfo.qmore) {
                         // q < n
@@ -434,9 +434,27 @@ const FSSLM = (()=> {
         },
     };
     
+    const test_sets = (sets) => {
+        let fsslm = new (meta_fsslm(str_mapops))();
+        let wlks = sets.map(s => fsslm.test_add_walker(s));
+        wlks.run = () => {
+            for(let i = 0; i < wlks.length; i++) {
+                let wlk = wlks[i];
+                let s = sets[i];
+                console.log('add', s);
+                wlk.walk();
+            }
+            console.log('done');
+        };
+        return wlks;
+    }
+    
     return {
         str: meta_fsslm(str_mapops),
         obj: meta_fsslm(obj_mapops),
+        test1: test_sets.bind(null, [
+            'abcde', 'abc', 'abcd', 'abde'
+        ]),
     };
     
 })();
