@@ -4,8 +4,21 @@ const FSSLM = (()=> {
     
         PL_MA_SRC, PR_MA_MSK, PR_MA_LEN,
         MTD_MA_INT,
-    
+        
+        PL_N_NXT, PR_N_LOOPCNT,
         FLG_N_VALID,
+        
+        PL_W_CUR,
+        
+        PL_W_STAT,
+        MTD_W_INIT_STAT, MTD_W_RET,
+        
+        PL_W_NDINFO,
+        MTD_W_STRIP_VARR,
+        MTD_W_PARSE_NODE_INFO, MTD_W_GET_NODE_INFO,
+        MTD_W_NEW_SUB_NODE, MTD_W_CLONE_SUB_KEY, MTD_W_GET_SUB_NODE,
+        
+        PR_G_ROOT,
         
         KEY_ND_LOOPBACK,
         KEY_ND_TOP,
@@ -224,7 +237,6 @@ const FSSLM = (()=> {
             constructor(start, vset) {
                 super(start, new c_masked_arr([...vset]));
                 this[PL_W_NDINFO] = new Map();
-                this[PR_W_DST_NODE] = null;
             }
             
             [MTD_W_STRIP_VARR](nd, varr) {
@@ -273,39 +285,6 @@ const FSSLM = (()=> {
                     nds.set(nd, ndinfo);
                 }
                 return ndinfo;
-            }
-            
-            [MTD_W_NEW_NODE](loops_varr, valid, dstinfo) {
-                let nd = new c_ss_node();
-                let wcnt = nd.set_loops(loops_varr);
-                if(valid) {
-                    nd.reg();
-                }
-                let ndinfo = {};
-                ndinfo.new = true;
-                ndinfo.walked = false;
-                ndinfo.wcnt = wcnt;
-                Object.assign(ndinfo, dstinfo);
-                this[PL_W_NDINFO].set(nd, ndinfo);
-                return nd;
-            }
-            
-            [MTD_W_INSERT_NODE](nnd, pnd, pkv, next_varr) {
-                let wlk_varr = next_varr.clone().inverse();
-            }
-            
-            [MTD_W_APPEND_NODE](nd, kv, next_varr) {
-                let apnd = this[PR_W_DST_NODE];
-                if(!apnd) {
-                    let src_varr = next_varr.src;
-                    apnd = this[MTD_W_NEW_NODE](src_varr, true, {
-                        qless: false,
-                        qmore: false,
-                    });
-                    this[PR_W_DST_NODE] = apnd;
-                }
-                assert(!nd.next(kv));
-                nd.set_next(kv, apnd);
             }
             
             [MTD_W_NEW_SUB_NODE](next_varr) {
@@ -409,14 +388,55 @@ const FSSLM = (()=> {
                 this[PR_G_ROOT] = new c_ss_node(null, false);
             }
             
+            test_add_walker(vset) {
+                return new c_ss_walker_add(this[PR_G_ROOT], vset);
+            }
+            
         }
         
         return c_ss_graph;
         
     };
     
+    const str_mapops = {
+        new() {
+            return {};
+        },
+        
+        get(dmap, key) {
+            return dmap[key];
+        },
+        
+        set(dmap, key, val) {
+            dmap[key] = val;
+        },
+        
+        *iter(dmap) {
+            return Object.entries(dmap);
+        },
+    };
+    
+    const obj_mapops = {
+        new() {
+            return new Map();
+        },
+        
+        get(dmap, key) {
+            return dmap.get(key);
+        },
+        
+        set(dmap, key, val) {
+            dmap.set(key, val);
+        },
+        
+        *iter(dmap) {
+            return dmap.entries();
+        },
+    };
+    
     return {
-        ma: c_masked_arr,
+        str: meta_fsslm(str_mapops),
+        obj: meta_fsslm(obj_mapops),
     };
     
 })();
