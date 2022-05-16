@@ -92,6 +92,12 @@ const FSSLM = (()=> {
             }
         }
         
+        *iter() {
+            for(let [v, _] of this.coiter()) {
+                yield v;
+            }
+        }
+        
         merge(dst) {
             let src = this[PL_MA_SRC];
             if(src !== dst[PL_MA_SRC]) {
@@ -266,9 +272,10 @@ const FSSLM = (()=> {
                 let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VARR](nd, varr);
                 assert(strp_varr.length === cnt_hit + cnt_missed);
                 let strp_wcnt = wcnt + cnt_looped;
-                assert(nd.length >= strp_wcnt);
-                assert(strp_wcnt > 0 || strp_wcnt === nd.length === 0);
-                ndinfo.qless = (nd.length > strp_wcnt);
+                let nlen = nd === KEY_ND_TOP ? Infinity : nd.length;
+                assert(nlen >= strp_wcnt);
+                assert(strp_wcnt > 0 || (strp_wcnt === 0 && nlen === 0));
+                ndinfo.qless = (nlen > strp_wcnt);
                 ndinfo.qmore = (cnt_hit + cnt_missed > 0);
                 ndinfo.varr = strp_varr;
                 ndinfo.wcnt = strp_wcnt;
@@ -290,7 +297,7 @@ const FSSLM = (()=> {
             [MTD_W_NEW_SUB_NODE](next_varr) {
                 let wlk_varr = next_varr.clone().inverse();
                 let nd = new c_ss_node();
-                let wcnt = nd.set_loops(wlk_varr);
+                let wcnt = nd.set_loops(wlk_varr.iter());
                 let is_tar = (next_varr.length === 0);
                 if(is_tar) {
                     nd.reg();
