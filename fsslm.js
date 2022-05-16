@@ -128,6 +128,10 @@ const FSSLM = (()=> {
                 return nxt ?? null;
             }
             
+            *iter() {
+                yield *mapops.iter(this[PL_N_NXT]);
+            }
+            
             set_next(v, nnd) {
                 mapops.set(this[PL_N_NXT], v, nnd);
             }
@@ -310,11 +314,25 @@ const FSSLM = (()=> {
                 return nd;
             }
             
-            [MTD_W_GET_SUB_NODE](par_ndinfo, next_varr) {
+            [MTD_W_CLONE_SUB_KEY](par_nd, sub_nd) {
+                for(let [v, nxt] of par_nd.iter()) {
+                    if(sub_nd.next(v)) {
+                        continue;
+                    }
+                    if(nxt === KEY_ND_LOOPBACK) {
+                        sub_nd.set_next(v, par_nd);
+                    } else {
+                        sub_nd.set_next(v, nxt);
+                    }
+                }
+            }
+            
+            [MTD_W_GET_SUB_NODE](par_ndinfo, par_nd, next_varr) {
                 assert(!par_ndinfo.qmore === (next_varr.length === 0));
                 let nd = par_ndinfo.sub;
                 if(!nd) {
                     nd = this[MTD_W_NEW_SUB_NODE](next_varr);
+                    this[MTD_W_CLONE_SUB_KEY](par_nd, nd);
                     par_ndinfo.sub = nd;
                 }
                 return nd;
@@ -327,7 +345,7 @@ const FSSLM = (()=> {
                 let sub_nd = null;
                 let relink_nd = null;
                 if(ndinfo.qless) {
-                    sub_nd = this[MTD_W_GET_SUB_NODE](ndinfo, strp_varr);
+                    sub_nd = this[MTD_W_GET_SUB_NODE](ndinfo, nd, strp_varr);
                     let prv_ndinfo = this[MTD_W_GET_NODE_INFO](pnd, null);
                     relink_nd = prv_ndinfo.sub ?? pnd;
                     if(!ndinfo.qmore) {
@@ -359,9 +377,6 @@ const FSSLM = (()=> {
                                 // pkv in Q
                                 relink_nd.set_next(pkv, sub_nd);
                             }
-                            
-                            // clone sub key
-                            sub_nd.set_next(v, nxt);
                         }
                         
                         this[PL_W_CUR].push([
