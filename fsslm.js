@@ -8,6 +8,7 @@ const FSSLM = (()=> {
         FLG_N_VALID,
         
         KEY_ND_LOOPBACK,
+        KEY_ND_TOP,
     
     ] = (function*() {
         while(true) {
@@ -95,6 +96,14 @@ const FSSLM = (()=> {
             let slen = this[PL_MA_SRC].length;
             this[PR_MA_MSK] = ~this[PR_MA_MSK] & ((v1 << this[MTD_MA_INT](slen)) - v1);
             this[PR_MA_LEN] = slen - this[PR_MA_LEN];
+            return this;
+        }
+        
+        empty() {
+            let v1 = this[MTD_MA_INT](1);
+            let slen = this[PL_MA_SRC].length;
+            this[PR_MA_MSK] = (v1 << this[MTD_MA_INT](slen)) - v1;
+            this[PR_MA_LEN] = 0;
             return this;
         }
         
@@ -223,6 +232,9 @@ const FSSLM = (()=> {
                 let cnt_looped = 0,
                     cnt_hit = 0,
                     cnt_missed = 0;
+                if(nd === KEY_ND_TOP) {
+                    return [rvarr.empty(), varr.length, 0, 0];
+                }
                 for(let [v, co] of varr.coiter()) {
                     let nxt = nd.next(v);
                     if(nxt === KEY_ND_LOOPBACK) {
@@ -332,7 +344,9 @@ const FSSLM = (()=> {
                 let nd = par_ndinfo.sub;
                 if(!nd) {
                     nd = this[MTD_W_NEW_SUB_NODE](next_varr);
-                    this[MTD_W_CLONE_SUB_KEY](par_nd, nd);
+                    if(par_nd !== KEY_ND_TOP) {
+                        this[MTD_W_CLONE_SUB_KEY](par_nd, nd);
+                    }
                     par_ndinfo.sub = nd;
                 }
                 return nd;
@@ -356,6 +370,7 @@ const FSSLM = (()=> {
                 } else {
                     if(!ndinfo.qmore) {
                         // q == n
+                        assert(nd !== KEY_ND_TOP);
                         nd.reg();
                         return;
                     }
@@ -367,25 +382,22 @@ const FSSLM = (()=> {
                 ndinfo.walked = true;
                 let strp_wcnt = ndinfo.wcnt;
                 for(let [v, co] of strp_varr.coiter()) {
+                    assert(nd !== KEY_ND_TOP);
                     let nxt = nd.next(v);
                     assert(nxt !== KEY_ND_LOOPBACK);
-                    if(nxt) {
-                        
-                        if(sub_nd) {
-                            // relink
-                            if(pkv === v) {
-                                // pkv in Q
-                                relink_nd.set_next(pkv, sub_nd);
-                            }
-                        }
-                        
-                        this[PL_W_CUR].push([
-                            nxt, co, nd, v, strp_wcnt + 1,
-                        ]);                        
-                    } else {
-                        // missed
-                        this[MTD_W_APPEND_NODE](nd, v, co);
+                    if(!nxt) {
+                        nxt = KEY_ND_TOP;
                     }
+                    if(sub_nd) {
+                        // relink
+                        if(pkv === v) {
+                            // pkv in Q
+                            relink_nd.set_next(pkv, sub_nd);
+                        }
+                    }
+                    this[PL_W_CUR].push([
+                        nxt, co, nd, v, strp_wcnt + 1,
+                    ]);
                 }
             }
             
