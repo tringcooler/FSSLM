@@ -344,13 +344,14 @@ const FSSLM = (()=> {
                 let strp_varr = ndinfo.varr;
                 let sub_nd = null;
                 let relink_nd = null;
+                let no_next = false;
                 if(ndinfo.qless) {
                     sub_nd = this[MTD_W_GET_SUB_NODE](ndinfo, nd, strp_varr);
                     let prv_ndinfo = this[MTD_W_GET_NODE_INFO](pnd, null, null);
                     relink_nd = prv_ndinfo.sub ?? pnd;
                     if(!ndinfo.qmore) {
                         // q < n
-                        return;
+                        no_next = true;
                     }
                     //q ^ n
                 } else {
@@ -363,7 +364,11 @@ const FSSLM = (()=> {
                     // q > n
                 }
                 if(ndinfo.walked) {
-                    return;
+                    if(relink_nd) {
+                        no_next = true;
+                    } else {
+                        return;
+                    }
                 }
                 ndinfo.walked = true;
                 let strp_wcnt = ndinfo.wcnt;
@@ -374,16 +379,21 @@ const FSSLM = (()=> {
                     if(!nxt) {
                         nxt = KEY_ND_TOP;
                     }
-                    if(sub_nd) {
+                    if(relink_nd) {
                         // relink
                         if(pkv === v) {
                             // pkv in Q
                             relink_nd.set_next(pkv, sub_nd);
+                            if(no_next) {
+                                break;
+                            }
                         }
                     }
-                    this[PL_W_CUR].push([
-                        nxt, co, nd, v, strp_wcnt + 1,
-                    ]);
+                    if(!no_next) {
+                        this[PL_W_CUR].push([
+                            nxt, co, nd, v, strp_wcnt + 1,
+                        ]);
+                    }
                 }
             }
             
