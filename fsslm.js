@@ -441,16 +441,18 @@ const FSSLM = (()=> {
                 islast = islast ?? true;
                 let ndinfo = this[MTD_W_GET_NODE_INFO](nd);
                 if(!isfirst) {
-                    this.write(' ');
                     for(let idt of indents) {
                         this.write(' '.repeat(idt - 1));
                         this.write('|');
                     }
                 }
-                let repr_nd = `+-${pkv ?? ''}-nd(${ndinfo.nid}):${ndinfo.loops.length ? ndinfo.loops : '@'}`;
-                this.write(isfirst ? repr_nd : repr_nd.slice(1));
+                let repr_nd = `-${pkv ?? ''}-nd(${ndinfo.nid}):${ndinfo.loops.length ? ndinfo.loops : '@'}`;
+                if(!ndinfo.walked && ndinfo.nexts.length) {
+                    repr_nd += '-+';
+                }
+                this.write(repr_nd);
                 if(ndinfo.walked) {
-                    this.write('*\n');
+                    this.write('-*\n');
                     return;
                 }
                 ndinfo.walked = true;
