@@ -342,16 +342,14 @@ const FSSLM = (()=> {
                 let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
                 let ndinfo = this[MTD_W_GET_NODE_INFO](nd, varr, wcnt);
                 let strp_varr = ndinfo.varr;
-                let sub_nd = null;
-                let relink_nd = null;
-                let no_next = false;
                 if(ndinfo.qless) {
-                    sub_nd = this[MTD_W_GET_SUB_NODE](ndinfo, nd, strp_varr);
+                    let sub_nd = this[MTD_W_GET_SUB_NODE](ndinfo, nd, strp_varr);
                     let prv_ndinfo = this[MTD_W_GET_NODE_INFO](pnd, null, null);
-                    relink_nd = prv_ndinfo.sub ?? pnd;
+                    let relink_nd = prv_ndinfo.sub ?? pnd;
+                    relink_nd.set_next(pkv, sub_nd);
                     if(!ndinfo.qmore) {
                         // q < n
-                        no_next = true;
+                        return;
                     }
                     //q ^ n
                 } else {
@@ -364,11 +362,7 @@ const FSSLM = (()=> {
                     // q > n
                 }
                 if(ndinfo.walked) {
-                    if(relink_nd) {
-                        no_next = true;
-                    } else {
-                        return;
-                    }
+                    return;
                 }
                 ndinfo.walked = true;
                 let strp_wcnt = ndinfo.wcnt;
@@ -379,21 +373,9 @@ const FSSLM = (()=> {
                     if(!nxt) {
                         nxt = KEY_ND_TOP;
                     }
-                    if(relink_nd) {
-                        // relink
-                        if(pkv === v) {
-                            // pkv in Q
-                            relink_nd.set_next(pkv, sub_nd);
-                            if(no_next) {
-                                break;
-                            }
-                        }
-                    }
-                    if(!no_next) {
-                        this[PL_W_CUR].push([
-                            nxt, co, nd, v, strp_wcnt + 1,
-                        ]);
-                    }
+                    this[PL_W_CUR].push([
+                        nxt, co, nd, v, strp_wcnt + 1,
+                    ]);
                 }
             }
             
