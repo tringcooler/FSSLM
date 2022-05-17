@@ -18,6 +18,8 @@ const FSSLM = (()=> {
         MTD_W_PARSE_NODE_INFO, MTD_W_GET_NODE_INFO,
         MTD_W_NEW_SUB_NODE, MTD_W_CLONE_SUB_KEY, MTD_W_GET_SUB_NODE,
         
+        PR_W_NID, PR_W_REPR,
+        
         PR_G_ROOT,
         
         KEY_ND_LOOPBACK,
@@ -381,15 +383,13 @@ const FSSLM = (()=> {
             
         }
         
-        class c_ss_walker_show extends c_ss_walker_add {
+        class c_ss_walker_repr extends c_ss_walker {
             
-            constructor(start, vset) {
-                super(start, vset);
+            constructor(start) {
+                super(start, null);
+                this[PL_W_NDINFO] = new Map();
+                this[PR_W_NID] = 0;
                 this[PR_W_REPR] = '';
-            }
-            
-            [MTD_W_PARSE_NODE_INFO](nd, varr, wcnt) {
-                let ndinfo = super[MTD_W_PARSE_NODE_INFO](nd, varr, wcnt);
             }
             
             write(s) {
@@ -400,22 +400,79 @@ const FSSLM = (()=> {
                 this[PR_W_REPR] += '\n';
             }
             
-            step() {
-                let [nd, varr, pnd, pkv, wcnt, indents, isfirst] = this[PL_W_CUR].shift();
-                indents = indents ?? [];
-                isfirst = isfirst ?? true;
-                let ndinfo = this[MTD_W_GET_NODE_INFO](nd, varr, wcnt);
-                let strp_varr = ndinfo.varr;
-                let set_varr = strp_varr.clone().inverse();
-                if(!isfirst) {
-                    for(let idt of indents) {
-                        this.write(' '.repeat(idt - 1) + '|');
+            get repr() {
+                return this[PR_W_REPR];
+            }
+            
+            [MTD_W_PARSE_NODE_INFO](nd) {
+                let loops = [];
+                let nexts = [];
+                for(let [v, nxt] of nd.iter()) {
+                    if(nxt === KEY_ND_LOOPBACK) {
+                        loops.push(v);
+                    } else {
+                        nexts.push([v, nxt]);
                     }
                 }
-                let repr_nd = '--nd:' + set_varr;
-                this.write(repr_nd);
+                loops.sort();
+                nexts.sort((a, b) => a[0].localeCompare(b[0]));
+                return {
+                    nid: ++this[PR_W_NID],
+                    loops: loops,
+                    nexts: nexts,
+                    walked: false,
+                };
+            }
+            
+            [MTD_W_GET_NODE_INFO](nd) {
+                let nds = this[PL_W_NDINFO];
+                let ndinfo = nds.get(nd);
+                if(!ndinfo) {
+                    ndinfo = this[MTD_W_PARSE_NODE_INFO](nd);
+                    nds.set(nd, ndinfo);
+                }
+                return ndinfo;
+            }
+            
+            step() {
+                let [nd, varr, pnd, pkv, wcnt, indents, isfirst, islast] = this[PL_W_CUR].pop();
+                indents = indents ?? [];
+                isfirst = isfirst ?? true;
+                islast = islast ?? true;
+                let ndinfo = this[MTD_W_GET_NODE_INFO](nd);
+                if(!isfirst) {
+                    this.write(' ');
+                    for(let idt of indents) {
+                        this.write(' '.repeat(idt - 1));
+                        this.write('|');
+                    }
+                }
+                let repr_nd = `+-${pkv ?? ''}-nd(${ndinfo.nid}):${ndinfo.loops.length ? ndinfo.loops : '@'}`;
+                this.write(isfirst ? repr_nd : repr_nd.slice(1));
                 if(ndinfo.walked) {
+                    this.write('*\n');
                     return;
+                }
+                ndinfo.walked = true;
+                let nindents = indents.slice();
+                if(isfirst) {
+                    nindents.push(repr_nd.length);
+                }
+                if(islast) {
+                    let l = nindents.length;
+                    if(l > 1) {
+                        nindents[l - 2] += nindents.pop();
+                    }
+                }
+                let nlen = ndinfo.nexts.length;
+                if(nlen === 0) {
+                    this.write('\n');
+                }
+                for(let i = nlen - 1; i > -1; i--) {
+                    let [v, nxt] = ndinfo.nexts[i];
+                    this[PL_W_CUR].push([
+                        nxt, null, nd, v, 0, nindents, i === 0, i === nlen - 1,
+                    ]);
                 }
             }
             
@@ -429,6 +486,12 @@ const FSSLM = (()=> {
             
             test_add_walker(vset) {
                 return new c_ss_walker_add(this[PR_G_ROOT], vset);
+            }
+            
+            repr() {
+                let wlkr = new c_ss_walker_repr(this[PR_G_ROOT]);
+                wlkr.walk();
+                return wlkr.repr;
             }
             
         }
@@ -451,7 +514,7 @@ const FSSLM = (()=> {
         },
         
         *iter(dmap) {
-            return Object.entries(dmap);
+            yield *Object.entries(dmap);
         },
     };
     
@@ -469,7 +532,7 @@ const FSSLM = (()=> {
         },
         
         *iter(dmap) {
-            return dmap.entries();
+            yield *dmap.entries();
         },
     };
     
