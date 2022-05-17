@@ -446,16 +446,18 @@ const FSSLM = (()=> {
                         this.write('|');
                     }
                 }
-                let repr_nd = `-${pkv ?? ''}-nd(${ndinfo.nid}):${ndinfo.loops.length ? ndinfo.loops : '@'}`;
-                if(!ndinfo.walked && ndinfo.nexts.length) {
-                    repr_nd += '-+';
-                }
-                this.write(repr_nd);
                 if(ndinfo.walked) {
-                    this.write('-*\n');
+                    let repr_nd = `-${pkv ?? ''}-(${ndinfo.nid})*`;
+                    this.write(repr_nd);
+                    this.write('\n');
                     return;
                 }
                 ndinfo.walked = true;
+                let repr_nd = `-${pkv ?? ''}-[${ndinfo.loops.length ? ndinfo.loops : '@'}](${ndinfo.nid})`;
+                if(ndinfo.nexts.length) {
+                    repr_nd += '-+';
+                }
+                this.write(repr_nd);
                 let nindents = indents.slice();
                 if(isfirst) {
                     nindents.push(repr_nd.length);
