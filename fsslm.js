@@ -417,7 +417,7 @@ const FSSLM = (()=> {
                 loops.sort();
                 nexts.sort((a, b) => a[0].localeCompare(b[0]));
                 return {
-                    nid: ++this[PR_W_NID],
+                    nid: this[PR_W_NID]++,
                     loops: loops,
                     nexts: nexts,
                     walked: false,
