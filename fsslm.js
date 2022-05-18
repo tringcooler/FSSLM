@@ -348,6 +348,7 @@ const FSSLM = (()=> {
                     let sub_nd = this[MTD_W_GET_SUB_NODE](ndinfo, nd, strp_varr);
                     let prv_ndinfo = this[MTD_W_GET_NODE_INFO](pnd, null, null);
                     let relink_nd = prv_ndinfo.sub ?? pnd;
+                    //console.log('relink', relink_nd[PL_N_NXT], pkv, nd[PL_N_NXT], sub_nd[PL_N_NXT]);
                     relink_nd.set_next(pkv, sub_nd);
                     if(!ndinfo.qmore) {
                         // q < n
@@ -416,6 +417,8 @@ const FSSLM = (()=> {
                 }
                 loops.sort();
                 nexts.sort((a, b) => a[0].localeCompare(b[0]));
+                //if(loops.length % 3 !== 1) nexts = nexts.slice(0, 1);
+                //nexts = nexts.slice(0, (loops.length + 1) % 3 + 1);
                 return {
                     nid: this[PR_W_NID]++,
                     loops: loops,
@@ -436,13 +439,15 @@ const FSSLM = (()=> {
             
             step() {
                 let [nd, varr, pnd, pkv, wcnt, indents, isfirst, islast] = this[PL_W_CUR].pop();
-                indents = indents ?? [];
+                indents = indents ?? [0];
                 isfirst = isfirst ?? true;
                 islast = islast ?? true;
                 let ndinfo = this[MTD_W_GET_NODE_INFO](nd);
                 if(!isfirst) {
                     for(let idt of indents) {
-                        this.write(' '.repeat(idt - 1));
+                        if(idt > 0) {
+                            this.write(' '.repeat(idt - 1));
+                        }
                         this.write('|');
                     }
                 }
@@ -459,14 +464,11 @@ const FSSLM = (()=> {
                 }
                 this.write(repr_nd);
                 let nindents = indents.slice();
-                if(isfirst) {
-                    nindents.push(repr_nd.length);
-                }
                 if(islast) {
                     let l = nindents.length;
-                    if(l > 1) {
-                        nindents[l - 2] += nindents.pop();
-                    }
+                    nindents[l - 1] += repr_nd.length;
+                } else {
+                    nindents.push(repr_nd.length);
                 }
                 let nlen = ndinfo.nexts.length;
                 if(nlen === 0) {
@@ -561,6 +563,9 @@ const FSSLM = (()=> {
         obj: meta_fsslm(obj_mapops),
         test1: test_sets.bind(null, [
             'abcde', 'abc', 'abcd', 'abde'
+        ]),
+        test2: test_sets.bind(null, [
+            'abcde', 'abc', 'abcd', 'abcdf', 'abcdg', 'ab', 'a',
         ]),
     };
     
