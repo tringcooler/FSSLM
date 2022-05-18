@@ -455,7 +455,8 @@ const FSSLM = (()=> {
                     return;
                 }
                 ndinfo.walked = true;
-                let repr_nd = `-${pkv ?? ''}-[${ndinfo.loops.length ? ndinfo.loops : '@'}](${ndinfo.nid})`;
+                let repr_nd =
+                    `-${pkv ?? ''}-${nd.valid ? '!':''}[${ndinfo.loops.length ? ndinfo.loops : '@'}](${ndinfo.nid})`;
                 if(ndinfo.nexts.length) {
                     repr_nd += '-+';
                 }
