@@ -5,10 +5,11 @@ const FSSLM = (()=> {
         PL_MA_SRC, PR_MA_MSK, PR_MA_LEN,
         MTD_MA_INT,
         
-        PL_N_NXT, PR_N_LOOPCNT,
+        PL_N_NXT, PR_N_LOOPCNT, PR_N_NEXTCNT,
         FLG_N_VALID,
         
         PL_W_CUR,
+        MTD_W_ND_NEW, MTD_W_ND_LEN, MTD_W_ND_ITER,
         
         PL_W_STAT,
         MTD_W_INIT_STAT, MTD_W_RET,
@@ -18,9 +19,12 @@ const FSSLM = (()=> {
         MTD_W_PARSE_NODE_INFO, MTD_W_GET_NODE_INFO,
         MTD_W_NEW_SUB_NODE, MTD_W_CLONE_SUB_KEY, MTD_W_GET_SUB_NODE,
         
+        PR_W_ROOT,
+        MTD_W_PRE_WALK,
+        
         PR_W_NID, PR_W_REPR,
         
-        PR_G_ROOT,
+        PR_G_ROOT, PR_G_ROOT_RVS,
         
         KEY_ND_LOOPBACK,
         KEY_ND_TOP,
@@ -137,11 +141,16 @@ const FSSLM = (()=> {
             constructor() {
                 this[PL_N_NXT] = mapops.new();
                 this[PR_N_LOOPCNT] = 0;
+                this[PR_N_NEXTCNT] = 0;
                 this[FLG_N_VALID] = false;
             }
             
             get length() {
                 return this[PR_N_LOOPCNT];
+            }
+            
+            get length_next() {
+                return this[PR_N_NEXTCNT];
             }
             
             get valid() {
@@ -163,13 +172,15 @@ const FSSLM = (()=> {
             }
             
             set_next(v, nnd) {
+                assert(nnd !== KEY_ND_LOOPBACK);
                 mapops.set(this[PL_N_NXT], v, nnd);
+                this[PR_N_NEXTCNT] ++;
             }
             
             set_loops(vset) {
                 let cnt = 0;
                 for(let v of vset) {
-                    this.set_next(v, KEY_ND_LOOPBACK);
+                    mapops.set(this[PL_N_NXT], v, KEY_ND_LOOPBACK);
                     cnt ++;
                 }
                 this[PR_N_LOOPCNT] += cnt;
@@ -192,6 +203,20 @@ const FSSLM = (()=> {
                 while(!this.done) {
                     this.step();
                 }
+            }
+            
+            [MTD_W_ND_NEW](loop_varr) {
+                let nd = new c_ss_node();
+                let wcnt = nd.set_loops(loop_varr);
+                return [nd, wcnt];
+            }
+            
+            [MTD_W_ND_LEN](nd) {
+                return nd.length;
+            }
+            
+            *[MTD_W_ND_ITER](nd) {
+                yield *nd.iter();
             }
             
         }
@@ -274,7 +299,7 @@ const FSSLM = (()=> {
                 let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VARR](nd, varr);
                 assert(strp_varr.length === cnt_hit + cnt_missed);
                 let strp_wcnt = wcnt + cnt_looped;
-                let nlen = nd === KEY_ND_TOP ? Infinity : nd.length;
+                let nlen = nd === KEY_ND_TOP ? Infinity : this[MTD_W_ND_LEN](nd);
                 assert(nlen >= strp_wcnt);
                 assert(strp_wcnt > 0 || (strp_wcnt === 0 && nlen === 0));
                 ndinfo.qless = (nlen > strp_wcnt);
@@ -298,8 +323,7 @@ const FSSLM = (()=> {
             
             [MTD_W_NEW_SUB_NODE](next_varr) {
                 let wlk_varr = next_varr.clone().inverse();
-                let nd = new c_ss_node();
-                let wcnt = nd.set_loops(wlk_varr);
+                let [nd, wcnt] = this[MTD_W_ND_NEW](wlk_varr);
                 let is_tar = (next_varr.length === 0);
                 if(is_tar) {
                     nd.reg();
@@ -315,7 +339,7 @@ const FSSLM = (()=> {
             }
             
             [MTD_W_CLONE_SUB_KEY](par_nd, sub_nd) {
-                for(let [v, nxt] of par_nd.iter()) {
+                for(let [v, nxt] of this[MTD_W_ND_ITER](par_nd)) {
                     if(sub_nd.next(v)) {
                         continue;
                     }
@@ -383,6 +407,83 @@ const FSSLM = (()=> {
             
         }
         
+        class c_ss_node_reverse extends c_ss_node {
+            
+            length_rvs(root) {
+                return root.length_next - this.length;
+            }
+            
+            next(v) {
+                let nxt = super.next(v);
+                if(nxt === KEY_ND_LOOPBACK) {
+                    nxt = null;
+                } else if(nxt === null) {
+                    nxt = KEY_ND_LOOPBACK;
+                }
+                return nxt;
+            }
+            
+            *iter_rvs(root) {
+                for(let [v] of root.iter()) {
+                    let nxt = this.next(v);
+                    if(nxt) {
+                        yield nxt;
+                    }
+                }
+            }
+            
+            set_loops_rvs(root, vset) {
+                let aset = new Set();
+                for(let [v] of root.iter()) {
+                    aset.add(v);
+                }
+                for(let v of vset) {
+                    aset.remove(v);
+                }
+                return this.set_loops(aset);
+            }
+            
+        }
+        
+        class c_ss_walker_add_reverse extends c_ss_walker_add {
+            
+            [MTD_W_ND_NEW](loop_varr) {
+                let nd = new c_ss_node_reverse();
+                let wcnt = nd.set_loops_rvs(this[PR_W_ROOT], loop_varr);
+                return [nd, wcnt];
+            }
+            
+            [MTD_W_ND_LEN](nd) {
+                return nd.length_rvs(this[PR_W_ROOT]);
+            }
+            
+            *[MTD_W_ND_ITER](nd) {
+                yield *nd.iter_rvs(this[PR_W_ROOT]);
+            }
+            
+            [MTD_W_PRE_WALK]() {
+                if(this[PL_W_CUR].length === 0) return;
+                let [start, varr] = this[PL_W_CUR].shift();
+                this[PR_W_ROOT] = start;
+                
+                if(start.length_next <= 1 && !start.valid) {
+                    
+                } else {
+                    
+                }
+                
+                this[PL_W_CUR].push([
+                    start, nvarr, null, null, 0,
+                ]);
+            }
+            
+            walk() {
+                this[MTD_W_PRE_WALK]();
+                super.walk();
+            }
+            
+        }
+        
         class c_ss_walker_repr extends c_ss_walker {
             
             constructor(start) {
@@ -407,7 +508,7 @@ const FSSLM = (()=> {
             [MTD_W_PARSE_NODE_INFO](nd) {
                 let loops = [];
                 let nexts = [];
-                for(let [v, nxt] of nd.iter()) {
+                for(let [v, nxt] of this[MTD_W_ND_ITER](nd)) {
                     if(nxt === KEY_ND_LOOPBACK) {
                         loops.push(v);
                     } else {
@@ -484,16 +585,32 @@ const FSSLM = (()=> {
         
         class c_ss_graph {
             
-            constructor() {
-                this[PR_G_ROOT] = new c_ss_node(null, false);
+            constructor(orig = true, rvs = false) {
+                let root;
+                if(orig) {
+                    this[PR_G_ROOT] = new c_ss_node();
+                }
+                if(rvs) {
+                    this[PR_G_ROOT_RVS] = new c_ss_node_reverse();
+                }
             }
             
             test_add_walker(vset) {
                 return new c_ss_walker_add(this[PR_G_ROOT], vset);
             }
             
-            repr() {
-                let wlkr = new c_ss_walker_repr(this[PR_G_ROOT]);
+            test_add_rvs_walker(vset) {
+                return new c_ss_walker_add_reverse(this[PR_G_ROOT_RVS], vset);
+            }
+            
+            repr(rvs = false) {
+                let root;
+                if(rvs) {
+                    root = this[PR_G_ROOT_RVS];
+                } else {
+                    root = this[PR_G_ROOT];
+                }
+                let wlkr = new c_ss_walker_repr(root);
                 wlkr.walk();
                 return wlkr.repr;
             }
@@ -541,22 +658,31 @@ const FSSLM = (()=> {
     };
     
     const test_sets = (sets) => {
-        let fsslm = new (meta_fsslm(str_mapops))();
+        let fsslm = new (meta_fsslm(str_mapops))(true, true);
         let wlks = sets.map(s => fsslm.test_add_walker(s));
-        wlks.fsslm = fsslm;
-        wlks.run = (detail) => {
-            for(let i = 0; i < wlks.length; i++) {
-                let wlk = wlks[i];
-                let s = sets[i];
-                console.log('add', s);
-                wlk.walk();
-                if(detail) {
-                    console.log(fsslm.repr());
+        let wlks_r = sets.map(s => fsslm.test_add_rvs_walker(s));
+        return {
+            fsslm,
+            wlks, wlks_r,
+            run(detail) {
+                for(let i = 0; i < wlks.length; i++) {
+                    let wlk = wlks[i];
+                    let wlk_r = wlks_r[i];
+                    let s = sets[i];
+                    console.log('add', s);
+                    wlk.walk();
+                    if(detail) {
+                        console.log(fsslm.repr(false));
+                    }
+                    console.log('rvs add', s);
+                    wlk_r.walk();
+                    if(detail) {
+                        console.log(fsslm.repr(true));
+                    }
                 }
-            }
-            console.log('done');
+                console.log('done');
+            },
         };
-        return wlks;
     }
     
     return {
