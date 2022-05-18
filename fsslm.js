@@ -94,7 +94,7 @@ const FSSLM = (()=> {
             }
         }
         
-        *iter() {
+        *[Symbol.iterator]() {
             for(let [v, _] of this.coiter()) {
                 yield v;
             }
@@ -299,7 +299,7 @@ const FSSLM = (()=> {
             [MTD_W_NEW_SUB_NODE](next_varr) {
                 let wlk_varr = next_varr.clone().inverse();
                 let nd = new c_ss_node();
-                let wcnt = nd.set_loops(wlk_varr.iter());
+                let wcnt = nd.set_loops(wlk_varr);
                 let is_tar = (next_varr.length === 0);
                 if(is_tar) {
                     nd.reg();
