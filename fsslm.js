@@ -543,12 +543,15 @@ const FSSLM = (()=> {
         let fsslm = new (meta_fsslm(str_mapops))();
         let wlks = sets.map(s => fsslm.test_add_walker(s));
         wlks.fsslm = fsslm;
-        wlks.run = () => {
+        wlks.run = (detail) => {
             for(let i = 0; i < wlks.length; i++) {
                 let wlk = wlks[i];
                 let s = sets[i];
                 console.log('add', s);
                 wlk.walk();
+                if(detail) {
+                    console.log(fsslm.repr());
+                }
             }
             console.log('done');
         };
@@ -560,6 +563,9 @@ const FSSLM = (()=> {
         obj: meta_fsslm(obj_mapops),
         test1: test_sets.bind(null, [
             'abcde', 'abc', 'abcd', 'abde'
+        ]),
+        test2: test_sets.bind(null, [
+            'abce', 'bcde', 'abcd',
         ]),
     };
     
