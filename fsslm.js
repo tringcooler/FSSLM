@@ -225,291 +225,297 @@ const FSSLM = (()=> {
             
         }
         
-        class c_ss_walker_match extends c_ss_walker {
-            
-            constructor(start, vset) {
-                super(start, [...vset]);
-                this[MTD_W_INIT_STAT]();
-            }
-            
-            [MTD_W_INIT_STAT]() {
-                this[PL_W_STAT] = {
-                    match: null,
-                    cmplt: false,
-                };
-            }
-            
-            [MTD_W_RET](match, cmplt) {
-                assert(this.done);
-                let s = this[PL_W_STAT];
-                s.match = match;
-                s.cmplt = cmplt;
-            }
-            
-            step() {
-                let cseq = this[PL_W_CUR];
-                let [nd, varr, pnd, pkv, wcnt] = cseq[0];
-                if(varr.length === 0) {
-                    cseq.shift();
-                    this[MTD_W_RET](nd, true);
-                    return;
+        const meta_ss_walker_match = c_ss_walker_base =>
+            class c_ss_walker_match extends c_ss_walker_base {
+                
+                constructor(start, vset) {
+                    super(start, [...vset]);
+                    this[MTD_W_INIT_STAT]();
                 }
-                let v = varr.pop();
-                let nxt = nd.next(v);
-                if(nxt === KEY_ND_LOOPBACK) {
-                    cseq[0][4] ++;
-                    return;
-                } else if(nxt) {
-                    cseq[0] = [nxt, varr, nd, v, wcnt + 1];
-                } else {
-                    cseq.shift();
-                    this[MTD_W_RET](null, false);
+                
+                [MTD_W_INIT_STAT]() {
+                    this[PL_W_STAT] = {
+                        match: null,
+                        cmplt: false,
+                    };
                 }
-            }
-            
-        }
-        
-        class c_ss_walker_add extends c_ss_walker {
-            
-            constructor(start, vset) {
-                super(start, new c_masked_arr([...vset]));
-                this[PL_W_NDINFO] = new Map();
-            }
-            
-            [MTD_W_STRIP_VARR](nd, varr) {
-                let rvarr = varr.clone();
-                let cnt_looped = 0,
-                    cnt_hit = 0,
-                    cnt_missed = 0;
-                if(nd === KEY_ND_TOP) {
-                    return [rvarr.empty(), varr.length, 0, 0];
+                
+                [MTD_W_RET](match, cmplt) {
+                    assert(this.done);
+                    let s = this[PL_W_STAT];
+                    s.match = match;
+                    s.cmplt = cmplt;
                 }
-                for(let [v, co] of varr.coiter()) {
+                
+                step() {
+                    let cseq = this[PL_W_CUR];
+                    let [nd, varr, pnd, pkv, wcnt] = cseq[0];
+                    if(varr.length === 0) {
+                        cseq.shift();
+                        this[MTD_W_RET](nd, true);
+                        return;
+                    }
+                    let v = varr.pop();
                     let nxt = nd.next(v);
                     if(nxt === KEY_ND_LOOPBACK) {
-                        cnt_looped ++;
-                        rvarr.merge(co);
+                        cseq[0][4] ++;
+                        return;
                     } else if(nxt) {
-                        cnt_hit ++;
+                        cseq[0] = [nxt, varr, nd, v, wcnt + 1];
                     } else {
-                        cnt_missed ++;
+                        cseq.shift();
+                        this[MTD_W_RET](null, false);
                     }
                 }
-                return [rvarr, cnt_looped, cnt_hit, cnt_missed];
+                
             }
+        const c_ss_walker_match = meta_ss_walker_match(c_ss_walker);
             
-            [MTD_W_PARSE_NODE_INFO](nd, varr, wcnt) {
-                let ndinfo = {};
-                let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VARR](nd, varr);
-                assert(strp_varr.length === cnt_hit + cnt_missed);
-                let strp_wcnt = wcnt + cnt_looped;
-                let nlen = nd === KEY_ND_TOP ? Infinity : this[MTD_W_ND_LEN](nd);
-                assert(nlen >= strp_wcnt);
-                assert(strp_wcnt > 0 || (strp_wcnt === 0 && nlen === 0));
-                ndinfo.qless = (nlen > strp_wcnt);
-                ndinfo.qmore = (cnt_hit + cnt_missed > 0);
-                ndinfo.varr = strp_varr;
-                ndinfo.wcnt = strp_wcnt;
-                ndinfo.walked = false;
-                return ndinfo;
-            }
-            
-            [MTD_W_GET_NODE_INFO](nd, varr, wcnt) {
-                let nds = this[PL_W_NDINFO];
-                let ndinfo = nds.get(nd);
-                if(!ndinfo) {
-                    assert(varr);
-                    ndinfo = this[MTD_W_PARSE_NODE_INFO](nd, varr, wcnt);
-                    nds.set(nd, ndinfo);
+        const meta_ss_walker_add = c_ss_walker_base =>
+            class c_ss_walker_add extends c_ss_walker_base {
+                
+                constructor(start, vset) {
+                    super(start, new c_masked_arr([...vset]));
+                    this[PL_W_NDINFO] = new Map();
                 }
-                return ndinfo;
-            }
-            
-            [MTD_W_NEW_SUB_NODE](next_varr) {
-                let wlk_varr = next_varr.clone().inverse();
-                let [nd, wcnt] = this[MTD_W_ND_NEW](wlk_varr);
-                let is_tar = (next_varr.length === 0);
-                if(is_tar) {
-                    nd.reg();
-                }
-                let ndinfo = {};
-                ndinfo.qless = false;
-                ndinfo.qmore = !is_tar;
-                ndinfo.varr = next_varr
-                ndinfo.wcnt = wcnt;
-                ndinfo.walked = false;
-                this[PL_W_NDINFO].set(nd, ndinfo);
-                return nd;
-            }
-            
-            [MTD_W_CLONE_SUB_KEY](par_nd, sub_nd) {
-                for(let [v, nxt] of this[MTD_W_ND_ITER](par_nd)) {
-                    if(sub_nd.next(v)) {
-                        continue;
+                
+                [MTD_W_STRIP_VARR](nd, varr) {
+                    let rvarr = varr.clone();
+                    let cnt_looped = 0,
+                        cnt_hit = 0,
+                        cnt_missed = 0;
+                    if(nd === KEY_ND_TOP) {
+                        return [rvarr.empty(), varr.length, 0, 0];
                     }
-                    if(nxt === KEY_ND_LOOPBACK) {
-                        sub_nd.set_next(v, par_nd);
-                    } else {
-                        sub_nd.set_next(v, nxt);
-                    }
-                }
-            }
-            
-            [MTD_W_GET_SUB_NODE](par_ndinfo, par_nd, next_varr) {
-                assert(!par_ndinfo.qmore === (next_varr.length === 0));
-                let nd = par_ndinfo.sub;
-                if(!nd) {
-                    nd = this[MTD_W_NEW_SUB_NODE](next_varr);
-                    if(par_nd !== KEY_ND_TOP) {
-                        this[MTD_W_CLONE_SUB_KEY](par_nd, nd);
-                    }
-                    par_ndinfo.sub = nd;
-                }
-                return nd;
-            }
-            
-            step() {
-                let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
-                let ndinfo = this[MTD_W_GET_NODE_INFO](nd, varr, wcnt);
-                let strp_varr = ndinfo.varr;
-                if(ndinfo.qless) {
-                    let sub_nd = this[MTD_W_GET_SUB_NODE](ndinfo, nd, strp_varr);
-                    let prv_ndinfo = this[MTD_W_GET_NODE_INFO](pnd, null, null);
-                    let relink_nd = prv_ndinfo.sub ?? pnd;
-                    relink_nd.set_next(pkv, sub_nd);
-                    if(!ndinfo.qmore) {
-                        // q < n
-                        return;
-                    }
-                    //q ^ n
-                } else {
-                    if(!ndinfo.qmore) {
-                        // q == n
-                        assert(nd !== KEY_ND_TOP);
-                        nd.reg();
-                        return;
-                    }
-                    // q > n
-                }
-                if(ndinfo.walked) {
-                    return;
-                }
-                ndinfo.walked = true;
-                let strp_wcnt = ndinfo.wcnt;
-                for(let [v, co] of strp_varr.coiter()) {
-                    assert(nd !== KEY_ND_TOP);
-                    let nxt = nd.next(v);
-                    assert(nxt !== KEY_ND_LOOPBACK);
-                    if(!nxt) {
-                        nxt = KEY_ND_TOP;
-                    }
-                    this[PL_W_CUR].push([
-                        nxt, co, nd, v, strp_wcnt + 1,
-                    ]);
-                }
-            }
-            
-        }
-        
-        class c_ss_walker_repr extends c_ss_walker {
-            
-            constructor(start) {
-                super(start, null);
-                this[PL_W_NDINFO] = new Map();
-                this[PR_W_NID] = 0;
-                this[PR_W_REPR] = '';
-            }
-            
-            write(s) {
-                this[PR_W_REPR] += s;
-            }
-            
-            newline() {
-                this[PR_W_REPR] += '\n';
-            }
-            
-            get repr() {
-                return this[PR_W_REPR];
-            }
-            
-            [MTD_W_PARSE_NODE_INFO](nd) {
-                let loops = [];
-                let nexts = [];
-                for(let [v, nxt] of this[MTD_W_ND_ITER](nd)) {
-                    if(nxt === KEY_ND_LOOPBACK) {
-                        loops.push(v);
-                    } else {
-                        nexts.push([v, nxt]);
-                    }
-                }
-                loops.sort();
-                nexts.sort((a, b) => a[0].localeCompare(b[0]));
-                return {
-                    nid: this[PR_W_NID]++,
-                    loops: loops,
-                    nexts: nexts,
-                    repr: loops.length ? loops : '@',
-                    walked: false,
-                };
-            }
-            
-            [MTD_W_GET_NODE_INFO](nd) {
-                let nds = this[PL_W_NDINFO];
-                let ndinfo = nds.get(nd);
-                if(!ndinfo) {
-                    ndinfo = this[MTD_W_PARSE_NODE_INFO](nd);
-                    nds.set(nd, ndinfo);
-                }
-                return ndinfo;
-            }
-            
-            step() {
-                let [nd, varr, pnd, pkv, wcnt, indents, isfirst, islast] = this[PL_W_CUR].pop();
-                indents = indents ?? [0];
-                isfirst = isfirst ?? true;
-                islast = islast ?? true;
-                let ndinfo = this[MTD_W_GET_NODE_INFO](nd);
-                if(!isfirst) {
-                    for(let idt of indents) {
-                        if(idt > 0) {
-                            this.write(' '.repeat(idt - 1));
+                    for(let [v, co] of varr.coiter()) {
+                        let nxt = nd.next(v);
+                        if(nxt === KEY_ND_LOOPBACK) {
+                            cnt_looped ++;
+                            rvarr.merge(co);
+                        } else if(nxt) {
+                            cnt_hit ++;
+                        } else {
+                            cnt_missed ++;
                         }
-                        this.write('|');
+                    }
+                    return [rvarr, cnt_looped, cnt_hit, cnt_missed];
+                }
+                
+                [MTD_W_PARSE_NODE_INFO](nd, varr, wcnt) {
+                    let ndinfo = {};
+                    let [strp_varr, cnt_looped, cnt_hit, cnt_missed] = this[MTD_W_STRIP_VARR](nd, varr);
+                    assert(strp_varr.length === cnt_hit + cnt_missed);
+                    let strp_wcnt = wcnt + cnt_looped;
+                    let nlen = nd === KEY_ND_TOP ? Infinity : this[MTD_W_ND_LEN](nd);
+                    assert(nlen >= strp_wcnt);
+                    assert(strp_wcnt > 0 || (strp_wcnt === 0 && nlen === 0));
+                    ndinfo.qless = (nlen > strp_wcnt);
+                    ndinfo.qmore = (cnt_hit + cnt_missed > 0);
+                    ndinfo.varr = strp_varr;
+                    ndinfo.wcnt = strp_wcnt;
+                    ndinfo.walked = false;
+                    return ndinfo;
+                }
+                
+                [MTD_W_GET_NODE_INFO](nd, varr, wcnt) {
+                    let nds = this[PL_W_NDINFO];
+                    let ndinfo = nds.get(nd);
+                    if(!ndinfo) {
+                        assert(varr);
+                        ndinfo = this[MTD_W_PARSE_NODE_INFO](nd, varr, wcnt);
+                        nds.set(nd, ndinfo);
+                    }
+                    return ndinfo;
+                }
+                
+                [MTD_W_NEW_SUB_NODE](next_varr) {
+                    let wlk_varr = next_varr.clone().inverse();
+                    let [nd, wcnt] = this[MTD_W_ND_NEW](wlk_varr);
+                    let is_tar = (next_varr.length === 0);
+                    if(is_tar) {
+                        nd.reg();
+                    }
+                    let ndinfo = {};
+                    ndinfo.qless = false;
+                    ndinfo.qmore = !is_tar;
+                    ndinfo.varr = next_varr
+                    ndinfo.wcnt = wcnt;
+                    ndinfo.walked = false;
+                    this[PL_W_NDINFO].set(nd, ndinfo);
+                    return nd;
+                }
+                
+                [MTD_W_CLONE_SUB_KEY](par_nd, sub_nd) {
+                    for(let [v, nxt] of this[MTD_W_ND_ITER](par_nd)) {
+                        if(sub_nd.next(v)) {
+                            continue;
+                        }
+                        if(nxt === KEY_ND_LOOPBACK) {
+                            sub_nd.set_next(v, par_nd);
+                        } else {
+                            sub_nd.set_next(v, nxt);
+                        }
                     }
                 }
-                if(ndinfo.walked) {
-                    let repr_nd = `-${pkv ?? ''}-(${ndinfo.nid})*`;
+                
+                [MTD_W_GET_SUB_NODE](par_ndinfo, par_nd, next_varr) {
+                    assert(!par_ndinfo.qmore === (next_varr.length === 0));
+                    let nd = par_ndinfo.sub;
+                    if(!nd) {
+                        nd = this[MTD_W_NEW_SUB_NODE](next_varr);
+                        if(par_nd !== KEY_ND_TOP) {
+                            this[MTD_W_CLONE_SUB_KEY](par_nd, nd);
+                        }
+                        par_ndinfo.sub = nd;
+                    }
+                    return nd;
+                }
+                
+                step() {
+                    let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
+                    let ndinfo = this[MTD_W_GET_NODE_INFO](nd, varr, wcnt);
+                    let strp_varr = ndinfo.varr;
+                    if(ndinfo.qless) {
+                        let sub_nd = this[MTD_W_GET_SUB_NODE](ndinfo, nd, strp_varr);
+                        let prv_ndinfo = this[MTD_W_GET_NODE_INFO](pnd, null, null);
+                        let relink_nd = prv_ndinfo.sub ?? pnd;
+                        relink_nd.set_next(pkv, sub_nd);
+                        if(!ndinfo.qmore) {
+                            // q < n
+                            return;
+                        }
+                        //q ^ n
+                    } else {
+                        if(!ndinfo.qmore) {
+                            // q == n
+                            assert(nd !== KEY_ND_TOP);
+                            nd.reg();
+                            return;
+                        }
+                        // q > n
+                    }
+                    if(ndinfo.walked) {
+                        return;
+                    }
+                    ndinfo.walked = true;
+                    let strp_wcnt = ndinfo.wcnt;
+                    for(let [v, co] of strp_varr.coiter()) {
+                        assert(nd !== KEY_ND_TOP);
+                        let nxt = nd.next(v);
+                        assert(nxt !== KEY_ND_LOOPBACK);
+                        if(!nxt) {
+                            nxt = KEY_ND_TOP;
+                        }
+                        this[PL_W_CUR].push([
+                            nxt, co, nd, v, strp_wcnt + 1,
+                        ]);
+                    }
+                }
+                
+            };
+        const c_ss_walker_add = meta_ss_walker_add(c_ss_walker);
+        
+        const meta_ss_walker_repr = c_ss_walker_base =>
+            class c_ss_walker_repr extends c_ss_walker_base {
+                
+                constructor(start) {
+                    super(start, null);
+                    this[PL_W_NDINFO] = new Map();
+                    this[PR_W_NID] = 0;
+                    this[PR_W_REPR] = '';
+                }
+                
+                write(s) {
+                    this[PR_W_REPR] += s;
+                }
+                
+                newline() {
+                    this[PR_W_REPR] += '\n';
+                }
+                
+                get repr() {
+                    return this[PR_W_REPR];
+                }
+                
+                [MTD_W_PARSE_NODE_INFO](nd) {
+                    let loops = [];
+                    let nexts = [];
+                    for(let [v, nxt] of this[MTD_W_ND_ITER](nd)) {
+                        if(nxt === KEY_ND_LOOPBACK) {
+                            loops.push(v);
+                        } else {
+                            nexts.push([v, nxt]);
+                        }
+                    }
+                    loops.sort();
+                    nexts.sort((a, b) => a[0].localeCompare(b[0]));
+                    return {
+                        nid: this[PR_W_NID]++,
+                        loops: loops,
+                        nexts: nexts,
+                        repr: loops.length ? loops : '@',
+                        walked: false,
+                    };
+                }
+                
+                [MTD_W_GET_NODE_INFO](nd) {
+                    let nds = this[PL_W_NDINFO];
+                    let ndinfo = nds.get(nd);
+                    if(!ndinfo) {
+                        ndinfo = this[MTD_W_PARSE_NODE_INFO](nd);
+                        nds.set(nd, ndinfo);
+                    }
+                    return ndinfo;
+                }
+                
+                step() {
+                    let [nd, varr, pnd, pkv, wcnt, indents, isfirst, islast] = this[PL_W_CUR].pop();
+                    indents = indents ?? [0];
+                    isfirst = isfirst ?? true;
+                    islast = islast ?? true;
+                    let ndinfo = this[MTD_W_GET_NODE_INFO](nd);
+                    if(!isfirst) {
+                        for(let idt of indents) {
+                            if(idt > 0) {
+                                this.write(' '.repeat(idt - 1));
+                            }
+                            this.write('|');
+                        }
+                    }
+                    if(ndinfo.walked) {
+                        let repr_nd = `-${pkv ?? ''}-(${ndinfo.nid})*`;
+                        this.write(repr_nd);
+                        this.write('\n');
+                        return;
+                    }
+                    ndinfo.walked = true;
+                    let repr_nd =
+                        `-${pkv ?? ''}-${nd.valid ? '!':''}[${ndinfo.repr}](${ndinfo.nid})`;
+                    if(ndinfo.nexts.length) {
+                        repr_nd += '-+';
+                    }
                     this.write(repr_nd);
-                    this.write('\n');
-                    return;
+                    let nindents = indents.slice();
+                    if(islast) {
+                        let l = nindents.length;
+                        nindents[l - 1] += repr_nd.length;
+                    } else {
+                        nindents.push(repr_nd.length);
+                    }
+                    let nlen = ndinfo.nexts.length;
+                    if(nlen === 0) {
+                        this.write('\n');
+                    }
+                    for(let i = nlen - 1; i > -1; i--) {
+                        let [v, nxt] = ndinfo.nexts[i];
+                        this[PL_W_CUR].push([
+                            nxt, null, nd, v, 0, nindents, i === 0, i === nlen - 1,
+                        ]);
+                    }
                 }
-                ndinfo.walked = true;
-                let repr_nd =
-                    `-${pkv ?? ''}-${nd.valid ? '!':''}[${ndinfo.repr}](${ndinfo.nid})`;
-                if(ndinfo.nexts.length) {
-                    repr_nd += '-+';
-                }
-                this.write(repr_nd);
-                let nindents = indents.slice();
-                if(islast) {
-                    let l = nindents.length;
-                    nindents[l - 1] += repr_nd.length;
-                } else {
-                    nindents.push(repr_nd.length);
-                }
-                let nlen = ndinfo.nexts.length;
-                if(nlen === 0) {
-                    this.write('\n');
-                }
-                for(let i = nlen - 1; i > -1; i--) {
-                    let [v, nxt] = ndinfo.nexts[i];
-                    this[PL_W_CUR].push([
-                        nxt, null, nd, v, 0, nindents, i === 0, i === nlen - 1,
-                    ]);
-                }
-            }
-            
-        }
+                
+            };
+        const c_ss_walker_repr = meta_ss_walker_repr(c_ss_walker);
         
         class c_ss_node_reverse {
             
@@ -599,7 +605,7 @@ const FSSLM = (()=> {
             
         }
         
-        class c_ss_walker_add_reverse extends c_ss_walker_add {
+        class c_ss_walker_reverse extends c_ss_walker {
             
             [MTD_W_ND_NEW](loop_varr) {
                 let nd = new c_ss_node_reverse();
@@ -614,6 +620,10 @@ const FSSLM = (()=> {
             *[MTD_W_ND_ITER](nd) {
                 yield *nd.iter_rvs(this[PR_W_ROOT]);
             }
+            
+        }
+        
+        class c_ss_walker_add_reverse extends meta_ss_walker_add(c_ss_walker_reverse) {
             
             [MTD_W_PRE_WALK]() {
                 if(this[PL_W_CUR].length === 0) return;
@@ -655,25 +665,11 @@ const FSSLM = (()=> {
             
         }
         
-        class c_ss_walker_repr_reverse extends c_ss_walker_repr {
+        class c_ss_walker_repr_reverse extends meta_ss_walker_repr(c_ss_walker_reverse) {
             
             constructor(start) {
                 super(start);
                 this[PR_W_ROOT] = start;
-            }
-            
-            [MTD_W_ND_NEW](loop_varr) {
-                let nd = new c_ss_node_reverse();
-                let wcnt = nd.set_loops_rvs(this[PR_W_ROOT], loop_varr);
-                return [nd, wcnt];
-            }
-            
-            [MTD_W_ND_LEN](nd) {
-                return nd.length_rvs(this[PR_W_ROOT]);
-            }
-            
-            *[MTD_W_ND_ITER](nd) {
-                yield *nd.iter_rvs(this[PR_W_ROOT]);
             }
             
             [MTD_W_PARSE_NODE_INFO](nd) {
