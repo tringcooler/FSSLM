@@ -25,6 +25,7 @@ const FSSLM = (()=> {
         
         PL_W_NDWLK,
         MTD_W_TAKE_CTX, MTD_W_PUT_CTX,
+        MTD_W_CALC_DELT,
         
         PR_W_ROOT,
         MTD_W_PRE_WALK,
@@ -604,6 +605,10 @@ const FSSLM = (()=> {
                 que.push(ctx);
             }
             
+            [MTD_W_CALC_DELT](cur, nxt) {
+                return nxt.length - cur.length;
+            }
+            
             step() {
                 let [nd, wcnt] = this[MTD_W_TAKE_CTX]();
                 if(nd.valid) {
@@ -612,7 +617,7 @@ const FSSLM = (()=> {
                 for(let [v, nxt] of nd.iter_next()) {
                     assert(nxt && nxt !== KEY_ND_LOOPBACK);
                     if(this[PL_W_NDWLK].has(nxt)) continue;
-                    let dcnt = nxt.length - nd.length;
+                    let dcnt = this[MTD_W_CALC_DELT](nd, nxt);
                     assert(dcnt > 0);
                     this[MTD_W_PUT_CTX]([nxt, wcnt + dcnt], dcnt);
                     this[PL_W_NDWLK].add(nxt);
@@ -620,6 +625,14 @@ const FSSLM = (()=> {
             }
             
         };
+        
+        class c_ss_walker_nearest_reverse extends c_ss_walker_nearest {
+            
+            [MTD_W_CALC_DELT](cur, nxt) {
+                return cur.length - nxt.length;
+            }
+            
+        }
         
         class c_ss_node_reverse {
             
@@ -860,7 +873,7 @@ const FSSLM = (()=> {
                 }
                 wlkr.walk();
                 let rslt = wlkr.result;
-                console.log('match:', rslt.match ? [...rslt.match.iter_set()] : 'x', rslt);
+                console.log('match:', rslt.match ? [...rslt.match.iter_set()].join(',') : 'x', rslt);
                 let rmatch = rslt.match;
                 if(rmatch && !rslt.valid) {
                     wlkr = new c_wlkr_nearest(rmatch);
