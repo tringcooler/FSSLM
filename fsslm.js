@@ -645,6 +645,7 @@ const FSSLM = (()=> {
             walk() {
                 this[MTD_W_PRE_WALK]();
                 super.walk();
+                return this[PR_W_ROOT];
             }
             
         }
@@ -672,14 +673,7 @@ const FSSLM = (()=> {
             
             [MTD_W_PARSE_NODE_INFO](nd) {
                 let ndinfo = super[MTD_W_PARSE_NODE_INFO](nd);
-                let nloops = new Set();
-                for(let v of this[PR_W_ROOT].iter_co()) {
-                    nloops.add(v);
-                }
-                for(let v of ndinfo.loops) {
-                    nloops.delete(v);
-                }
-                nloops = [...nloops].sort();
+                let nloops = [...nd.iter_co()].sort();
                 ndinfo.loops = nloops;
                 ndinfo.repr = nloops.length ? nloops : '@';
                 return ndinfo
@@ -789,7 +783,7 @@ const FSSLM = (()=> {
                         console.log(fsslm.repr(false));
                     }
                     console.log('rvs add', s);
-                    wlk_r.walk();
+                    fsslm[PR_G_ROOT_RVS] = wlk_r.walk();
                     if(detail) {
                         console.log(fsslm.repr(true));
                     }
