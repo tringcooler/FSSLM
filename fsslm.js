@@ -8,6 +8,8 @@ const FSSLM = (()=> {
         PL_N_NXT, PR_N_LOOPCNT, PR_N_NEXTCNT,
         FLG_N_VALID,
         
+        PL_NR_NXT, PL_NR_CO,
+        
         PL_W_CUR,
         MTD_W_ND_NEW, MTD_W_ND_LEN, MTD_W_ND_ITER,
         
@@ -25,6 +27,8 @@ const FSSLM = (()=> {
         PR_W_NID, PR_W_REPR,
         
         PR_G_ROOT, PR_G_ROOT_RVS,
+        
+        PR_MPOP_SIZE,
         
         KEY_ND_LOOPBACK,
         KEY_ND_TOP,
@@ -407,83 +411,6 @@ const FSSLM = (()=> {
             
         }
         
-        class c_ss_node_reverse extends c_ss_node {
-            
-            length_rvs(root) {
-                return root.length_next - this.length;
-            }
-            
-            next(v) {
-                let nxt = super.next(v);
-                if(nxt === KEY_ND_LOOPBACK) {
-                    nxt = null;
-                } else if(nxt === null) {
-                    nxt = KEY_ND_LOOPBACK;
-                }
-                return nxt;
-            }
-            
-            *iter_rvs(root) {
-                for(let [v] of root.iter()) {
-                    let nxt = this.next(v);
-                    if(nxt) {
-                        yield nxt;
-                    }
-                }
-            }
-            
-            set_loops_rvs(root, vset) {
-                let aset = new Set();
-                for(let [v] of root.iter()) {
-                    aset.add(v);
-                }
-                for(let v of vset) {
-                    aset.remove(v);
-                }
-                return this.set_loops(aset);
-            }
-            
-        }
-        
-        class c_ss_walker_add_reverse extends c_ss_walker_add {
-            
-            [MTD_W_ND_NEW](loop_varr) {
-                let nd = new c_ss_node_reverse();
-                let wcnt = nd.set_loops_rvs(this[PR_W_ROOT], loop_varr);
-                return [nd, wcnt];
-            }
-            
-            [MTD_W_ND_LEN](nd) {
-                return nd.length_rvs(this[PR_W_ROOT]);
-            }
-            
-            *[MTD_W_ND_ITER](nd) {
-                yield *nd.iter_rvs(this[PR_W_ROOT]);
-            }
-            
-            [MTD_W_PRE_WALK]() {
-                if(this[PL_W_CUR].length === 0) return;
-                let [start, varr] = this[PL_W_CUR].shift();
-                this[PR_W_ROOT] = start;
-                
-                if(start.length_next <= 1 && !start.valid) {
-                    
-                } else {
-                    
-                }
-                
-                this[PL_W_CUR].push([
-                    start, nvarr, null, null, 0,
-                ]);
-            }
-            
-            walk() {
-                this[MTD_W_PRE_WALK]();
-                super.walk();
-            }
-            
-        }
-        
         class c_ss_walker_repr extends c_ss_walker {
             
             constructor(start) {
@@ -521,6 +448,7 @@ const FSSLM = (()=> {
                     nid: this[PR_W_NID]++,
                     loops: loops,
                     nexts: nexts,
+                    repr: loops.length ? loops : '@',
                     walked: false,
                 };
             }
@@ -557,7 +485,7 @@ const FSSLM = (()=> {
                 }
                 ndinfo.walked = true;
                 let repr_nd =
-                    `-${pkv ?? ''}-${nd.valid ? '!':''}[${ndinfo.loops.length ? ndinfo.loops : '@'}](${ndinfo.nid})`;
+                    `-${pkv ?? ''}-${nd.valid ? '!':''}[${ndinfo.repr}](${ndinfo.nid})`;
                 if(ndinfo.nexts.length) {
                     repr_nd += '-+';
                 }
@@ -583,6 +511,182 @@ const FSSLM = (()=> {
             
         }
         
+        class c_ss_node_reverse {
+            
+            constructor() {
+                this[PL_NR_NXT] = mapops.new();
+                this[PL_NR_CO] = new Set();
+                this[FLG_N_VALID] = false;
+            }
+            
+            clone() {
+                let r = new c_ss_node_reverse();
+                for(let [v, nxt] of mapops.iter(this[PL_NR_NXT])) {
+                    mapops.set(r[PL_NR_NXT], v, nxt);
+                }
+                for(let v of this[PL_NR_CO]) {
+                    r[PL_NR_CO].add(v);
+                }
+                r[FLG_N_VALID] = this[FLG_N_VALID]
+                return r;
+            }
+            
+            get length_co() {
+                return this[PL_NR_CO].size;
+            }
+            
+            get length_next() {
+                return mapops.size(this[PL_NR_NXT]);
+            }
+            
+            length_rvs(root) {
+                return root.length_co - this.length_co;
+            }
+            
+            get valid() {
+                return this[FLG_N_VALID];
+            }
+            
+            reg() {
+                this[FLG_N_VALID] || (this[FLG_N_VALID] = true);
+                return this;
+            }
+            
+            next(v) {
+                let nxt = mapops.get(this[PL_NR_NXT], v);
+                if(!nxt) {
+                    nxt = this[PL_NR_CO].has(v) ? null : KEY_ND_LOOPBACK;
+                }
+                return nxt;
+            }
+            
+            *iter_co() {
+                yield *this[PL_NR_CO];
+            }
+            
+            *iter_rvs(root) {
+                for(let v of root.iter_co()) {
+                    let nxt = this.next(v);
+                    if(nxt) {
+                        yield [v, nxt];
+                    }
+                }
+            }
+            
+            set_next(v, nnd) {
+                assert(nnd !== KEY_ND_LOOPBACK);
+                mapops.set(this[PL_NR_NXT], v, nnd);
+            }
+            
+            set_co(v) {
+                this[PL_NR_CO].add(v);
+            }
+            
+            set_loops_rvs(root, vset) {
+                let co = this[PL_NR_CO];
+                for(let v of root.iter_co()) {
+                    co.add(v);
+                }
+                for(let v of vset) {
+                    co.delete(v);
+                }
+            }
+            
+        }
+        
+        class c_ss_walker_add_reverse extends c_ss_walker_add {
+            
+            [MTD_W_ND_NEW](loop_varr) {
+                let nd = new c_ss_node_reverse();
+                let wcnt = nd.set_loops_rvs(this[PR_W_ROOT], loop_varr);
+                return [nd, wcnt];
+            }
+            
+            [MTD_W_ND_LEN](nd) {
+                return nd.length_rvs(this[PR_W_ROOT]);
+            }
+            
+            *[MTD_W_ND_ITER](nd) {
+                yield *nd.iter_rvs(this[PR_W_ROOT]);
+            }
+            
+            [MTD_W_PRE_WALK]() {
+                if(this[PL_W_CUR].length === 0) return;
+                let [start, varr] = this[PL_W_CUR].shift();
+                let nvset = new Set();
+                for(let v of start.iter_co()) {
+                    nvset.add(v);
+                }
+                let nco = [];
+                for(let v of varr) {
+                    if(start.next(v) === KEY_ND_LOOPBACK) {
+                        nco.push(v);
+                    }
+                    nvset.delete(v);
+                }
+                let root = start;
+                if(nco.length > 0) {
+                    if(start.length_next > 1 || start.valid) {
+                        root = start.clone();
+                    }
+                    for(let v of nco) {
+                        root.set_co(v);
+                        if(root !== start) {
+                            root.set_next(v, start);
+                        }
+                    }
+                }
+                this[PR_W_ROOT] = root;
+                this[PL_W_CUR].push([
+                    root, new c_masked_arr([...nvset]), null, null, 0,
+                ]);
+            }
+            
+            walk() {
+                this[MTD_W_PRE_WALK]();
+                super.walk();
+            }
+            
+        }
+        
+        class c_ss_walker_repr_reverse extends c_ss_walker_repr {
+            
+            constructor(start) {
+                super(start);
+                this[PR_W_ROOT] = start;
+            }
+            
+            [MTD_W_ND_NEW](loop_varr) {
+                let nd = new c_ss_node_reverse();
+                let wcnt = nd.set_loops_rvs(this[PR_W_ROOT], loop_varr);
+                return [nd, wcnt];
+            }
+            
+            [MTD_W_ND_LEN](nd) {
+                return nd.length_rvs(this[PR_W_ROOT]);
+            }
+            
+            *[MTD_W_ND_ITER](nd) {
+                yield *nd.iter_rvs(this[PR_W_ROOT]);
+            }
+            
+            [MTD_W_PARSE_NODE_INFO](nd) {
+                let ndinfo = super[MTD_W_PARSE_NODE_INFO](nd);
+                let nloops = new Set();
+                for(let v of this[PR_W_ROOT].iter_co()) {
+                    nloops.add(v);
+                }
+                for(let v of ndinfo.loops) {
+                    nloops.delete(v);
+                }
+                nloops = [...nloops].sort();
+                ndinfo.loops = nloops;
+                ndinfo.repr = nloops.length ? nloops : '@';
+                return ndinfo
+            }
+            
+        }
+        
         class c_ss_graph {
             
             constructor(orig = true, rvs = false) {
@@ -604,13 +708,12 @@ const FSSLM = (()=> {
             }
             
             repr(rvs = false) {
-                let root;
+                let wlkr;
                 if(rvs) {
-                    root = this[PR_G_ROOT_RVS];
+                    wlkr = new c_ss_walker_repr_reverse(this[PR_G_ROOT_RVS]);
                 } else {
-                    root = this[PR_G_ROOT];
+                    wlkr = new c_ss_walker_repr(this[PR_G_ROOT]);
                 }
-                let wlkr = new c_ss_walker_repr(root);
                 wlkr.walk();
                 return wlkr.repr;
             }
@@ -623,7 +726,11 @@ const FSSLM = (()=> {
     
     const str_mapops = {
         new() {
-            return {};
+            return {[PR_MPOP_SIZE]: 0};
+        },
+        
+        size(dmap) {
+            return dmap[PR_MPOP_SIZE];
         },
         
         get(dmap, key) {
@@ -631,6 +738,9 @@ const FSSLM = (()=> {
         },
         
         set(dmap, key, val) {
+            if(!(key in dmap)) {
+                dmap[PR_MPOP_SIZE] ++;
+            }
             dmap[key] = val;
         },
         
@@ -642,6 +752,10 @@ const FSSLM = (()=> {
     const obj_mapops = {
         new() {
             return new Map();
+        },
+        
+        size(dmap) {
+            return dmap.size;
         },
         
         get(dmap, key) {
