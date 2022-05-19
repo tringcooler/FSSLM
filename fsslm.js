@@ -26,6 +26,8 @@ const FSSLM = (()=> {
         
         PR_W_NID, PR_W_REPR,
         
+        FLG_W_QMORE,
+        
         PR_G_ROOT, PR_G_ROOT_RVS,
         
         PR_MPOP_SIZE,
@@ -658,13 +660,26 @@ const FSSLM = (()=> {
                 for(let v of start.iter_set()) {
                     nvset.add(v);
                 }
+                let qmore = false;
                 for(let v of varr) {
-                    nvset.delete(v);
+                    if(nvset.has(v)) {
+                        nvset.delete(v);
+                    } else {
+                        qmore = true;
+                    }
                 }
+                this[FLG_W_QMORE] = qmore;
                 this[PR_W_ROOT] = start;
                 this[PL_W_CUR].push([
                     start, [...nvset], null, null, 0,
                 ]);
+            }
+            
+            [MTD_W_RET](match, cmplt) {
+                if(this[FLG_W_QMORE]) {
+                    cmplt = false;
+                }
+                super[MTD_W_RET](match, cmplt);
             }
             
         }
