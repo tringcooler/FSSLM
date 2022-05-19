@@ -225,7 +225,7 @@ const FSSLM = (()=> {
             
         }
         
-        class c_ss_walker_get extends c_ss_walker {
+        class c_ss_walker_match extends c_ss_walker {
             
             constructor(start, vset) {
                 super(start, [...vset]);
@@ -711,12 +711,16 @@ const FSSLM = (()=> {
                 }
             }
             
-            repr(rvs = false) {
-                let wlkr;
-                if(rvs && this[PR_G_ROOT_RVS]) {
-                    wlkr = new c_ss_walker_repr_reverse(this[PR_G_ROOT_RVS]);
-                } else if(this[PR_G_ROOT]) {
-                    wlkr = new c_ss_walker_repr(this[PR_G_ROOT]);
+            match(vset, rvs = null) {
+                
+            }
+            
+            repr(rvs = null) {
+                let wlkr, root;
+                if((root = this[PR_G_ROOT]) && !rvs) {
+                    wlkr = new c_ss_walker_repr(root);
+                } else if((root = this[PR_G_ROOT_RVS]) && (rvs ?? true)) {
+                    wlkr = new c_ss_walker_repr_reverse(root);
                 } else {
                     return '';
                 }
