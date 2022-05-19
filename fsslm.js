@@ -577,7 +577,10 @@ const FSSLM = (()=> {
             
             [MTD_W_TAKE_CTX]() {
                 let ques = this[PL_W_CUR];
-                assert(ques.length > 0);
+                while(!ques[0]) {
+                    ques.shift();
+                    assert(ques.length > 0);
+                }
                 let que = ques[0];
                 assert(que.length > 0);
                 let ctx = que.pop();
@@ -586,9 +589,6 @@ const FSSLM = (()=> {
                         this[PL_W_CUR] = [];
                     } else {
                         ques.shift();
-                        while(ques.length > 0 && !ques[0]) {
-                            ques.shift();
-                        }
                     }
                 }
                 return ctx;
@@ -614,7 +614,7 @@ const FSSLM = (()=> {
                     if(this[PL_W_NDWLK].has(nxt)) continue;
                     let dcnt = nxt.length - nd.length;
                     assert(dcnt > 0);
-                    this[MTD_W_PUT_CTX]([nd, wcnt + dcnt], dcnt);
+                    this[MTD_W_PUT_CTX]([nxt, wcnt + dcnt], dcnt);
                     this[PL_W_NDWLK].add(nxt);
                 }
             }
@@ -860,13 +860,13 @@ const FSSLM = (()=> {
                 }
                 wlkr.walk();
                 let rslt = wlkr.result;
-                console.log('match:', [...rslt.match.iter_set()], rslt);
+                console.log('match:', rslt.match ? [...rslt.match.iter_set()] : 'x', rslt);
                 let rmatch = rslt.match;
                 if(rmatch && !rslt.valid) {
                     wlkr = new c_wlkr_nearest(rmatch);
                     wlkr.walk();
                     let rslt_nrst = wlkr.result;
-                    console.log('nearest:', rslt_nrst);
+                    console.log('nearest:', rslt_nrst.matches.map(nd=>[...nd.iter_set()].join(',')), rslt_nrst);
                 }
             }
             
