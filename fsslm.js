@@ -175,6 +175,14 @@ const FSSLM = (()=> {
                 yield *mapops.iter(this[PL_N_NXT]);
             }
             
+            *iter_set() {
+                for(let [v, nxt] of mapops.iter(this[PL_N_NXT])) {
+                    if(nxt === KEY_ND_LOOPBACK) {
+                        yield v;
+                    }
+                }
+            }
+            
             set_next(v, nnd) {
                 assert(nnd !== KEY_ND_LOOPBACK);
                 mapops.set(this[PL_N_NXT], v, nnd);
@@ -578,12 +586,12 @@ const FSSLM = (()=> {
                 return nxt;
             }
             
-            *iter_co() {
+            *iter_set() {
                 yield *this[PL_NR_CO];
             }
             
             *iter_rvs(root) {
-                for(let v of root.iter_co()) {
+                for(let v of root.iter_set()) {
                     let nxt = this.next(v);
                     if(nxt) {
                         yield [v, nxt];
@@ -602,7 +610,7 @@ const FSSLM = (()=> {
             
             set_loops_rvs(root, vset) {
                 let co = this[PL_NR_CO];
-                for(let v of root.iter_co()) {
+                for(let v of root.iter_set()) {
                     co.add(v);
                 }
                 for(let v of vset) {
@@ -647,7 +655,7 @@ const FSSLM = (()=> {
             [MTD_W_PRE_WALK]() {
                 let [start, varr] = this[PL_W_CUR].shift();
                 let nvset = new Set();
-                for(let v of start.iter_co()) {
+                for(let v of start.iter_set()) {
                     nvset.add(v);
                 }
                 for(let v of varr) {
@@ -666,7 +674,7 @@ const FSSLM = (()=> {
             [MTD_W_PRE_WALK]() {
                 let [start, varr] = this[PL_W_CUR].shift();
                 let nvset = new Set();
-                for(let v of start.iter_co()) {
+                for(let v of start.iter_set()) {
                     nvset.add(v);
                 }
                 let nco = [];
@@ -700,7 +708,7 @@ const FSSLM = (()=> {
             
             [MTD_W_PARSE_NODE_INFO](nd) {
                 let ndinfo = super[MTD_W_PARSE_NODE_INFO](nd);
-                let nloops = [...nd.iter_co()].sort();
+                let nloops = [...nd.iter_set()].sort();
                 ndinfo.loops = nloops;
                 ndinfo.repr = nloops.length ? nloops : '@';
                 return ndinfo
@@ -743,7 +751,8 @@ const FSSLM = (()=> {
                     return null;
                 }
                 wlkr.walk();
-                console.log('match:', wlkr.result);
+                let rslt = wlkr.result;
+                console.log('match:', [...rslt.match.iter_set()], rslt);
             }
             
             repr(rvs = null) {
