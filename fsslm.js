@@ -21,10 +21,13 @@ const FSSLM = (()=> {
         MTD_W_PARSE_NODE_INFO, MTD_W_GET_NODE_INFO,
         MTD_W_NEW_SUB_NODE, MTD_W_CLONE_SUB_KEY, MTD_W_GET_SUB_NODE,
         
+        PR_W_NID, PR_W_REPR,
+        
+        PL_W_NDWLK,
+        MTD_W_TAKE_CTX, MTD_W_PUT_CTX,
+        
         PR_W_ROOT,
         MTD_W_PRE_WALK,
-        
-        PR_W_NID, PR_W_REPR,
         
         FLG_W_QMORE,
         
@@ -175,6 +178,14 @@ const FSSLM = (()=> {
             
             *iter() {
                 yield *mapops.iter(this[PL_N_NXT]);
+            }
+            
+            *iter_next() {
+                for(let pair of mapops.iter(this[PL_N_NXT])) {
+                    if(pair[1] !== KEY_ND_LOOPBACK) {
+                        yield pair;
+                    }
+                }
             }
             
             *iter_set() {
@@ -534,6 +545,82 @@ const FSSLM = (()=> {
             };
         const c_ss_walker_repr = meta_ss_walker_repr(c_ss_walker);
         
+        class c_ss_walker_nearest extends c_ss_walker {
+            
+            constructor(start) {
+                super(null, null);
+                this[PL_W_CUR] = [[[start, 0]]];
+                this[PL_W_NDWLK] = new Set();
+                this[MTD_W_INIT_STAT]()
+            }
+            
+            [MTD_W_INIT_STAT]() {
+                this[PL_W_STAT] = {
+                    matches: [],
+                    found: false,
+                    delt: 0,
+                };
+            }
+            
+            [MTD_W_RET](match, delt) {
+                let s = this[PL_W_STAT];
+                if(match) {
+                    s.matches.push(match);
+                    s.found = true;
+                }
+                s.delt = delt;
+            }
+            
+            get result() {
+                return this[PL_W_STAT];
+            }
+            
+            [MTD_W_TAKE_CTX]() {
+                let ques = this[PL_W_CUR];
+                assert(ques.length > 0);
+                let que = ques[0];
+                assert(que.length > 0);
+                let ctx = que.pop();
+                if(que.length === 0) {
+                    if(this[PL_W_STAT].found) {
+                        this[PL_W_CUR] = [];
+                    } else {
+                        ques.shift();
+                        while(ques.length > 0 && !ques[0]) {
+                            ques.shift();
+                        }
+                    }
+                }
+                return ctx;
+            }
+            
+            [MTD_W_PUT_CTX](ctx, dcnt) {
+                let ques = this[PL_W_CUR];
+                let que = ques[dcnt];
+                if(!que) {
+                    que = [];
+                    ques[dcnt] = que;
+                }
+                que.push(ctx);
+            }
+            
+            step() {
+                let [nd, wcnt] = this[MTD_W_TAKE_CTX]();
+                if(nd.valid) {
+                    this[MTD_W_RET](nd, wcnt);
+                }
+                for(let [v, nxt] of nd.iter_next()) {
+                    assert(nxt && nxt !== KEY_ND_LOOPBACK);
+                    if(this[PL_W_NDWLK].has(nxt)) continue;
+                    let dcnt = nxt.length - nd.length;
+                    assert(dcnt > 0);
+                    this[MTD_W_PUT_CTX]([nd, wcnt + dcnt], dcnt);
+                    this[PL_W_NDWLK].add(nxt);
+                }
+            }
+            
+        };
+        
         class c_ss_node_reverse {
             
             constructor() {
@@ -586,6 +673,10 @@ const FSSLM = (()=> {
                     nxt = this[PL_NR_CO].has(v) ? null : KEY_ND_LOOPBACK;
                 }
                 return nxt;
+            }
+            
+            *iter_next() {
+                yield *mapops.iter(this[PL_NR_NXT]);
             }
             
             *iter_set() {
@@ -757,17 +848,26 @@ const FSSLM = (()=> {
             }
             
             match(vset, rvs = null) {
-                let wlkr, root;
+                let wlkr, root, c_wlkr_nearest;
                 if((root = this[PR_G_ROOT]) && !rvs) {
                     wlkr = new c_ss_walker_match(root, vset);
+                    c_wlkr_nearest = c_ss_walker_nearest;
                 } else if((root = this[PR_G_ROOT_RVS]) && (rvs ?? true)) {
                     wlkr = new c_ss_walker_match_reverse(root, vset);
+                    c_wlkr_nearest = c_ss_walker_nearest_reverse;
                 } else {
                     return null;
                 }
                 wlkr.walk();
                 let rslt = wlkr.result;
                 console.log('match:', [...rslt.match.iter_set()], rslt);
+                let rmatch = rslt.match;
+                if(rmatch && !rslt.valid) {
+                    wlkr = new c_wlkr_nearest(rmatch);
+                    wlkr.walk();
+                    let rslt_nrst = wlkr.result;
+                    console.log('nearest:', rslt_nrst);
+                }
             }
             
             repr(rvs = null) {
