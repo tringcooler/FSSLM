@@ -245,14 +245,21 @@ const FSSLM = (()=> {
                     let s = this[PL_W_STAT];
                     s.match = match;
                     s.cmplt = cmplt;
+                    s.valid = match?.valid ?? false;
+                }
+                
+                get result() {
+                    return this.done ? this[PL_W_STAT] : null;
                 }
                 
                 step() {
                     let cseq = this[PL_W_CUR];
                     let [nd, varr, pnd, pkv, wcnt] = cseq[0];
                     if(varr.length === 0) {
+                        let nlen = this[MTD_W_ND_LEN](nd);
+                        assert(nlen >= wcnt);
                         cseq.shift();
-                        this[MTD_W_RET](nd, true);
+                        this[MTD_W_RET](nd, nlen === wcnt);
                         return;
                     }
                     let v = varr.pop();
@@ -708,7 +715,16 @@ const FSSLM = (()=> {
             }
             
             match(vset, rvs = null) {
-                
+                let wlkr, root;
+                if((root = this[PR_G_ROOT]) && !rvs) {
+                    wlkr = new c_ss_walker_match(root, vset);
+                } else if((root = this[PR_G_ROOT_RVS]) && (rvs ?? true)) {
+                    wlkr = new c_ss_walker_match_reverse(root, vset);
+                } else {
+                    return null;
+                }
+                wlkr.walk();
+                console.log('match:', wlkr.result);
             }
             
             repr(rvs = null) {
