@@ -807,6 +807,9 @@ const FSSLM = (()=> {
         test2: test_sets.bind(null, [
             'abce', 'bcde', 'abcd',
         ]),
+        test3: test_sets.bind(null, [
+            'a', 'b', 'c', 'd', 'ab',
+        ]),
     };
     
 })();
