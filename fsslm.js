@@ -642,6 +642,25 @@ const FSSLM = (()=> {
             
         }
         
+        class c_ss_walker_match_reverse extends meta_ss_walker_match(c_ss_walker_reverse) {
+            
+            [MTD_W_PRE_WALK]() {
+                let [start, varr] = this[PL_W_CUR].shift();
+                let nvset = new Set();
+                for(let v of start.iter_co()) {
+                    nvset.add(v);
+                }
+                for(let v of varr) {
+                    nvset.delete(v);
+                }
+                this[PR_W_ROOT] = start;
+                this[PL_W_CUR].push([
+                    start, [...nvset], null, null, 0,
+                ]);
+            }
+            
+        }
+            
         class c_ss_walker_add_reverse extends meta_ss_walker_add(c_ss_walker_reverse) {
             
             [MTD_W_PRE_WALK]() {
