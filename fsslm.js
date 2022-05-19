@@ -628,12 +628,23 @@ const FSSLM = (()=> {
                 yield *nd.iter_rvs(this[PR_W_ROOT]);
             }
             
+            [MTD_W_PRE_WALK]() {
+                this[PR_W_ROOT] = this[PL_W_CUR][0][0];
+            }
+            
+            walk() {
+                if(!this.done) {
+                    this[MTD_W_PRE_WALK]();
+                    super.walk();
+                }
+                return this[PR_W_ROOT];
+            }
+            
         }
         
         class c_ss_walker_add_reverse extends meta_ss_walker_add(c_ss_walker_reverse) {
             
             [MTD_W_PRE_WALK]() {
-                if(this[PL_W_CUR].length === 0) return;
                 let [start, varr] = this[PL_W_CUR].shift();
                 let nvset = new Set();
                 for(let v of start.iter_co()) {
@@ -664,20 +675,9 @@ const FSSLM = (()=> {
                 ]);
             }
             
-            walk() {
-                this[MTD_W_PRE_WALK]();
-                super.walk();
-                return this[PR_W_ROOT];
-            }
-            
         }
         
         class c_ss_walker_repr_reverse extends meta_ss_walker_repr(c_ss_walker_reverse) {
-            
-            constructor(start) {
-                super(start);
-                this[PR_W_ROOT] = start;
-            }
             
             [MTD_W_PARSE_NODE_INFO](nd) {
                 let ndinfo = super[MTD_W_PARSE_NODE_INFO](nd);
