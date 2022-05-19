@@ -559,7 +559,7 @@ const FSSLM = (()=> {
                 return r;
             }
             
-            get length_co() {
+            get length() {
                 return this[PL_NR_CO].size;
             }
             
@@ -568,7 +568,7 @@ const FSSLM = (()=> {
             }
             
             length_rvs(root) {
-                return root.length_co - this.length_co;
+                return root.length - this.length;
             }
             
             get valid() {
