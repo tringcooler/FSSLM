@@ -896,8 +896,16 @@ const FSSLM = (()=> {
                 }
             }
             
-            match(vset, rvs = null) {
+            match(vset, rvs = null, get_nodes = false) {
                 let wlkr, root, c_wlkr_nearest;
+                let rinfo = {
+                    matches: [],
+                    unmatch: Infinity,
+                    found: false,
+                };
+                if(get_nodes) {
+                    rinfo.nodes = [];
+                }
                 if((root = this[PR_G_ROOT]) && !rvs) {
                     wlkr = new c_ss_walker_match(root, vset);
                     c_wlkr_nearest = c_ss_walker_nearest;
@@ -905,31 +913,47 @@ const FSSLM = (()=> {
                     wlkr = new c_ss_walker_match_reverse(root, vset);
                     c_wlkr_nearest = c_ss_walker_nearest_reverse;
                 } else {
-                    return null;
+                    return rinfo;
                 }
                 wlkr.walk();
                 let rslt = wlkr.result;
-                console.log('match:', rslt.match ? [...rslt.match.iter_set()].join(',') : 'x', rslt);
                 let rmatch = rslt.match;
-                let rinfo = {
-                    matches: [],
-                    unmatch: rslt.delt,
-                };
+                rinfo.unmatch = rslt.delt;
                 if(!rmatch) {
                     /* pass */
                 } else if(rslt.valid) {
+                    if(get_nodes) {
+                        rinfo.nodes.push(rmatch);
+                    }
                     rinfo.matches.push(rmatch.val);
+                    rinfo.found = true;
                 } else {
                     wlkr = new c_wlkr_nearest(rmatch);
                     wlkr.walk();
                     let rslt_nrst = wlkr.result;
-                    console.log('nearest:', rslt_nrst.matches.map(nd=>[...nd.iter_set()].join(',')), rslt_nrst);
                     for(let nd of rslt_nrst.matches) {
+                        if(get_nodes) {
+                            rinfo.nodes.push(nd);
+                        }
                         rinfo.matches.push(nd.val);
                     }
                     rinfo.unmatch += rslt_nrst.delt;
+                    rinfo.found = rslt_nrst.found;
                 }
                 return rinfo;
+            }
+            
+            remove(vset) {
+                let removed = false;
+                for(let rvs of [false, true]) {
+                    let minfo = this.match(vset, rvs, true);
+                    if(minfo.unmatch === 0) {
+                        assert(minfo.found && minfo.nodes.length === 1);
+                        minfo.nodes[0].unreg();
+                        removed = true;
+                    }
+                }
+                return removed;
             }
             
             repr(rvs = null) {
