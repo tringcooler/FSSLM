@@ -12,7 +12,7 @@ const TEST_CASE = ((...c_sslms) => {
             tl.splice(i, 1);
             for(let stl of shuffle(tl)) {
                 // faster than [hd].concat(stl)
-                yield stl.concat(hd);
+                yield stl.concat([hd]);
             }
         }
     };
@@ -20,20 +20,14 @@ const TEST_CASE = ((...c_sslms) => {
     
     function *combine(src) {
         let slen = src.length;
-        if(slen == 1) {
+        if(slen < 1) {
             yield src;
-        }
-        if(slen <= 1) {
             return;
         }
-        for(let i = 0; i < slen; i++) {
-            let hd = src[i];
-            let tl = src.slice(i + 1);
-            for(let stl of combine(tl)) {
-                yield stl;
-                //yield stl.concat(hd);
-                yield [hd].concat(stl);
-            }
+        let [hd, ...tl] = src;
+        for(let stl of combine(tl)) {
+            yield stl;
+            yield stl.concat([hd]);
         }
     };
     window.combine = combine;
