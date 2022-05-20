@@ -24,7 +24,7 @@ const FSSLM = (()=> {
         PR_W_NID, PR_W_REPR,
         
         PL_W_NDWLK,
-        MTD_W_TAKE_CTX, MTD_W_PUT_CTX,
+        MTD_W_TAKE_CTX, MTD_W_TRIM_CTX, MTD_W_PUT_CTX,
         MTD_W_CALC_DELT,
         
         PR_W_ROOT,
@@ -578,21 +578,27 @@ const FSSLM = (()=> {
             
             [MTD_W_TAKE_CTX]() {
                 let ques = this[PL_W_CUR];
-                while(!ques[0]) {
-                    ques.shift();
-                    assert(ques.length > 0);
-                }
+                assert(ques.length > 0);
                 let que = ques[0];
                 assert(que.length > 0);
-                let ctx = que.pop();
+                return que.pop();
+            }
+            
+            [MTD_W_TRIM_CTX]() {
+                let ques = this[PL_W_CUR];
+                assert(ques.length > 0);
+                let que = ques[0];
                 if(que.length === 0) {
                     if(this[PL_W_STAT].found) {
                         this[PL_W_CUR] = [];
                     } else {
                         ques.shift();
+                        while(!ques[0]) {
+                            ques.shift();
+                            assert(ques.length > 0);
+                        }
                     }
                 }
-                return ctx;
             }
             
             [MTD_W_PUT_CTX](ctx, dcnt) {
@@ -623,7 +629,7 @@ const FSSLM = (()=> {
                     this[PL_W_NDWLK].add(nxt);
                     console.log('step next:', [...nd.iter_set()].join(','), [...nxt.iter_set()].join(','), dcnt, wcnt);
                 }
-                console.log('step done:', this[PL_W_CUR]);
+                this[MTD_W_TRIM_CTX]();
             }
             
         };
