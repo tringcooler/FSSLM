@@ -146,21 +146,10 @@ const FSSLM = (()=> {
     
     const meta_fsslm = (mapops) => {
         
-        class c_ss_node {
+        class c_ss_node_base {
             
             constructor() {
-                this[PL_N_NXT] = mapops.new();
-                this[PR_N_LOOPCNT] = 0;
-                this[PR_N_NEXTCNT] = 0;
                 this[FLG_N_VALID] = false;
-            }
-            
-            get length() {
-                return this[PR_N_LOOPCNT];
-            }
-            
-            get length_next() {
-                return this[PR_N_NEXTCNT];
             }
             
             get valid() {
@@ -170,6 +159,25 @@ const FSSLM = (()=> {
             reg() {
                 this[FLG_N_VALID] || (this[FLG_N_VALID] = true);
                 return this;
+            }
+            
+        }
+        
+        class c_ss_node extends c_ss_node_base {
+            
+            constructor() {
+                super();
+                this[PL_N_NXT] = mapops.new();
+                this[PR_N_LOOPCNT] = 0;
+                this[PR_N_NEXTCNT] = 0;
+            }
+            
+            get length() {
+                return this[PR_N_LOOPCNT];
+            }
+            
+            get length_next() {
+                return this[PR_N_NEXTCNT];
             }
             
             next(v) {
@@ -641,15 +649,15 @@ const FSSLM = (()=> {
             
         }
         
-        class c_ss_node_reverse {
+        class c_ss_node_reverse extends c_ss_node_base {
             
             constructor() {
+                super();
                 this[PL_NR_NXT] = mapops.new();
                 this[PL_NR_CO] = new Set();
-                this[FLG_N_VALID] = false;
             }
             
-            clone_novalid() {
+            clone_noreg() {
                 let r = new c_ss_node_reverse();
                 for(let [v, nxt] of mapops.iter(this[PL_NR_NXT])) {
                     mapops.set(r[PL_NR_NXT], v, nxt);
@@ -657,12 +665,6 @@ const FSSLM = (()=> {
                 for(let v of this[PL_NR_CO]) {
                     r[PL_NR_CO].add(v);
                 }
-                return r;
-            }
-            
-            clone() {
-                let r = this.clone_novalid();
-                r[FLG_N_VALID] = this[FLG_N_VALID];
                 return r;
             }
             
@@ -676,15 +678,6 @@ const FSSLM = (()=> {
             
             length_rvs(root) {
                 return root.length - this.length;
-            }
-            
-            get valid() {
-                return this[FLG_N_VALID];
-            }
-            
-            reg() {
-                this[FLG_N_VALID] || (this[FLG_N_VALID] = true);
-                return this;
             }
             
             next(v) {
@@ -813,7 +806,7 @@ const FSSLM = (()=> {
                 let root = start;
                 if(nco.length > 0) {
                     if(start.length_next > 1 || start.valid) {
-                        root = start.clone_novalid();
+                        root = start.clone_noreg();
                     }
                     for(let v of nco) {
                         root.set_co(v);
