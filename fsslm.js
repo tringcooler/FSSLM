@@ -600,7 +600,7 @@ const FSSLM = (()=> {
                 this[PL_W_STAT] = {
                     matches: [],
                     found: false,
-                    delt: 0,
+                    delt: Infinity,
                 };
             }
             
@@ -634,9 +634,11 @@ const FSSLM = (()=> {
                         this[PL_W_CUR] = [];
                     } else {
                         ques.shift();
-                        while(!ques[0]) {
-                            ques.shift();
-                            assert(ques.length > 0);
+                        if(ques.length > 0) {
+                            while(!ques[0]) {
+                                ques.shift();
+                                assert(ques.length > 0);
+                            }
                         }
                     }
                 }
