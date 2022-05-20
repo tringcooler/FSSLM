@@ -33,7 +33,7 @@ const FSSLM = (()=> {
         PR_W_ROOT,
         MTD_W_PRE_WALK,
         
-        FLG_W_QMORE,
+        PR_W_QMORE,
         
         PR_G_ROOT, PR_G_ROOT_RVS,
         
@@ -287,11 +287,12 @@ const FSSLM = (()=> {
                     };
                 }
                 
-                [MTD_W_RET](match, cmplt) {
+                [MTD_W_RET](match, dcnt) {
                     assert(this.done);
                     let s = this[PL_W_STAT];
                     s.match = match;
-                    s.cmplt = cmplt;
+                    s.delt = dcnt;
+                    s.cmplt = (dcnt === 0);
                     s.valid = match?.valid ?? false;
                 }
                 
@@ -306,7 +307,7 @@ const FSSLM = (()=> {
                         let nlen = this[MTD_W_ND_LEN](nd);
                         assert(nlen >= wcnt);
                         cseq.shift();
-                        this[MTD_W_RET](nd, nlen === wcnt);
+                        this[MTD_W_RET](nd, nlen - wcnt);
                         return;
                     }
                     let v = varr.pop();
@@ -318,7 +319,7 @@ const FSSLM = (()=> {
                         cseq[0] = [nxt, varr, nd, v, wcnt + 1];
                     } else {
                         cseq.shift();
-                        this[MTD_W_RET](null, false);
+                        this[MTD_W_RET](null, Infinity);
                     }
                 }
                 
@@ -796,26 +797,23 @@ const FSSLM = (()=> {
                 for(let v of start.iter_set()) {
                     nvset.add(v);
                 }
-                let qmore = false;
+                let qmore = 0;
                 for(let v of varr) {
                     if(nvset.has(v)) {
                         nvset.delete(v);
                     } else {
-                        qmore = true;
+                        qmore ++;
                     }
                 }
-                this[FLG_W_QMORE] = qmore;
+                this[PR_W_QMORE] = qmore;
                 this[PR_W_ROOT] = start;
                 this[PL_W_CUR].push([
                     start, [...nvset], null, null, 0,
                 ]);
             }
             
-            [MTD_W_RET](match, cmplt) {
-                if(this[FLG_W_QMORE]) {
-                    cmplt = false;
-                }
-                super[MTD_W_RET](match, cmplt);
+            [MTD_W_RET](match, dcnt) {
+                super[MTD_W_RET](match, dcnt + this[PR_W_QMORE]);
             }
             
         }
@@ -885,7 +883,6 @@ const FSSLM = (()=> {
                     let wlkr = new c_ss_walker_add(root, vset);
                     wlkr.walk();
                     let dst = wlkr.dest;
-                    console.log('set:', dst.val, dval);
                     dst.set(dval);
                 }
                 root = this[PR_G_ROOT_RVS];
@@ -893,7 +890,6 @@ const FSSLM = (()=> {
                     let wlkr = new c_ss_walker_add_reverse(root, vset);
                     this[PR_G_ROOT_RVS] = wlkr.walk();
                     let dst = wlkr.dest;
-                    console.log('set rvs:', dst.val, dval);
                     dst.set(dval);
                 }
             }
@@ -913,12 +909,25 @@ const FSSLM = (()=> {
                 let rslt = wlkr.result;
                 console.log('match:', rslt.match ? [...rslt.match.iter_set()].join(',') : 'x', rslt);
                 let rmatch = rslt.match;
-                if(rmatch && !rslt.valid) {
+                let rinfo = {
+                    matches: [],
+                    unmatch: rslt.delt,
+                };
+                if(!rmatch) {
+                    /* pass */
+                } else if(rslt.valid) {
+                    rinfo.matches.push(rmatch.val);
+                } else {
                     wlkr = new c_wlkr_nearest(rmatch);
                     wlkr.walk();
                     let rslt_nrst = wlkr.result;
                     console.log('nearest:', rslt_nrst.matches.map(nd=>[...nd.iter_set()].join(',')), rslt_nrst);
+                    for(let nd of rslt_nrst.matches) {
+                        rinfo.matches.push(nd.val);
+                    }
+                    rinfo.unmatch += rslt_nrst.delt;
                 }
+                return rinfo;
             }
             
             repr(rvs = null) {
@@ -993,7 +1002,7 @@ const FSSLM = (()=> {
             fsslm,
             run(detail) {
                 for(let s of sets) {
-                    fsslm.set(s);
+                    fsslm.set(s, s);
                     console.log('add', s);
                     if(detail) {
                         console.log(fsslm.repr(false));
