@@ -621,7 +621,9 @@ const FSSLM = (()=> {
                     assert(dcnt > 0);
                     this[MTD_W_PUT_CTX]([nxt, wcnt + dcnt], dcnt);
                     this[PL_W_NDWLK].add(nxt);
+                    console.log('step next:', [...nd.iter_set()].join(','), [...nxt.iter_set()].join(','), dcnt, wcnt);
                 }
+                console.log('step done:', this[PL_W_CUR]);
             }
             
         };
@@ -981,6 +983,10 @@ const FSSLM = (()=> {
         ]),
         test3: test_sets.bind(null, [
             'a', 'b', 'c', 'd', 'ab',
+        ]),
+        //tst.fsslm.match('abhijk', true)
+        testn: test_sets.bind(null, [
+            'abcde', 'abfg', 'abh', 'abijk', 'abl',
         ]),
     };
     
