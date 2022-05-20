@@ -5,8 +5,10 @@ const FSSLM = (()=> {
         PL_MA_SRC, PR_MA_MSK, PR_MA_LEN,
         MTD_MA_INT,
         
-        PL_N_NXT, PR_N_LOOPCNT, PR_N_NEXTCNT,
+        PR_N_DVAL,
         FLG_N_VALID,
+        
+        PL_N_NXT, PR_N_LOOPCNT, PR_N_NEXTCNT,
         
         PL_NR_NXT, PL_NR_CO,
         
@@ -17,6 +19,7 @@ const FSSLM = (()=> {
         MTD_W_INIT_STAT, MTD_W_RET,
         
         PL_W_NDINFO,
+        PR_W_DSTND,
         MTD_W_STRIP_VARR,
         MTD_W_PARSE_NODE_INFO, MTD_W_GET_NODE_INFO,
         MTD_W_NEW_SUB_NODE, MTD_W_CLONE_SUB_KEY, MTD_W_GET_SUB_NODE,
@@ -156,8 +159,22 @@ const FSSLM = (()=> {
                 return this[FLG_N_VALID];
             }
             
+            set(val) {
+                this[PR_N_DVAL] = val;
+            }
+            
+            get val() {
+                return this[PR_N_DVAL] ?? null;
+            }
+            
             reg() {
                 this[FLG_N_VALID] || (this[FLG_N_VALID] = true);
+                return this;
+            }
+            
+            unreg() {
+                this[FLG_N_VALID] && (this[FLG_N_VALID] = false);
+                this[PR_N_DVAL] === undefined || (this[PR_N_DVAL] = undefined);
                 return this;
             }
             
@@ -314,6 +331,12 @@ const FSSLM = (()=> {
                 constructor(start, vset) {
                     super(start, new c_masked_arr([...vset]));
                     this[PL_W_NDINFO] = new Map();
+                    this[PR_W_DSTND] = null;
+                }
+                
+                get dest() {
+                    assert(!this.done || this[PR_W_DSTND]);
+                    return this[PR_W_DSTND];
                 }
                 
                 [MTD_W_STRIP_VARR](nd, varr) {
@@ -371,6 +394,8 @@ const FSSLM = (()=> {
                     let is_tar = (next_varr.length === 0);
                     if(is_tar) {
                         nd.reg();
+                        assert(this[PR_W_DSTND] === null);
+                        this[PR_W_DSTND] = nd;
                     }
                     let ndinfo = {};
                     ndinfo.qless = false;
@@ -419,6 +444,7 @@ const FSSLM = (()=> {
                         relink_nd.set_next(pkv, sub_nd);
                         if(!ndinfo.qmore) {
                             // q < n
+                            ndinfo.walked = true;
                             return;
                         }
                         //q ^ n
@@ -426,7 +452,13 @@ const FSSLM = (()=> {
                         if(!ndinfo.qmore) {
                             // q == n
                             assert(nd !== KEY_ND_TOP);
-                            nd.reg();
+                            if(!ndinfo.walked) {
+                                nd.reg();
+                                assert(this[PR_W_DSTND] === null);
+                                this[PR_W_DSTND] = nd;
+                            }
+                            assert(this[PR_W_DSTND] === nd);
+                            ndinfo.walked = true;
                             return;
                         }
                         // q > n
@@ -847,16 +879,22 @@ const FSSLM = (()=> {
                 }
             }
             
-            add(vset) {
+            set(vset, dval) {
                 let root = this[PR_G_ROOT];
                 if(root) {
                     let wlkr = new c_ss_walker_add(root, vset);
                     wlkr.walk();
+                    let dst = wlkr.dest;
+                    console.log('set:', dst.val, dval);
+                    dst.set(dval);
                 }
                 root = this[PR_G_ROOT_RVS];
                 if(root) {
                     let wlkr = new c_ss_walker_add_reverse(root, vset);
                     this[PR_G_ROOT_RVS] = wlkr.walk();
+                    let dst = wlkr.dest;
+                    console.log('set rvs:', dst.val, dval);
+                    dst.set(dval);
                 }
             }
             
@@ -955,7 +993,7 @@ const FSSLM = (()=> {
             fsslm,
             run(detail) {
                 for(let s of sets) {
-                    fsslm.add(s);
+                    fsslm.set(s);
                     console.log('add', s);
                     if(detail) {
                         console.log(fsslm.repr(false));
