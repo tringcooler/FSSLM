@@ -15,7 +15,7 @@ const TEST_CASE = ((...c_sslms) => {
                 yield stl.concat([hd]);
             }
         }
-    };
+    }
     
     function *combine(src) {
         let slen = src.length;
@@ -28,7 +28,16 @@ const TEST_CASE = ((...c_sslms) => {
             yield stl;
             yield stl.concat([hd]);
         }
-    };
+    }
+    
+    function *randseq(n, mn, mx) {
+        let nmx = mx - n + 1;
+        let r = Math.floor(Math.random() * (nmx - mn + 1) + mn);
+        yield r;
+        if(n > 1) {
+            yield *randseq(n - 1, r + 1, mx);
+        }
+    }
     
     class c_test_route {
         
