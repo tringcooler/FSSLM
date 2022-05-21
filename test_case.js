@@ -53,6 +53,7 @@ const TEST_CASE = ((...c_sslms) => {
         
         constructor(tseq, qseq) {
             this.sslms = c_sslms.map(c => new c(true, true));
+            this.ndset = {};
             this.tseq = tseq;
             this.qseq = qseq;
             this.stat = {};
@@ -61,13 +62,24 @@ const TEST_CASE = ((...c_sslms) => {
         
         set(vset) {
             let sslms = this.sslms;
+            let nid = ++this.nid;
             for(let sslm of sslms) {
-                let nid = ++this.nid;
                 sslm.set(vset, nid);
             }
+            this.ndset[nid] = vset;
+        }
+        
+        updrslt_nid2ndset(minfo) {
+            let ndset = [];
+            for(let nid of minfo.matches) {
+                ndset.push(this.ndset[nid]);
+            }
+            minfo.nodes = ndset;
         }
         
         raise_conflict() {
+            this.updrslt_nid2ndset(this.stat.match.result);
+            this.updrslt_nid2ndset(this.stat.match.last_result);
             window.conflict_route = this;
             throw Error('conflict: detail in conflict_route');
         }
@@ -78,8 +90,10 @@ const TEST_CASE = ((...c_sslms) => {
                 && m1.matches.length === m2.matches.length);
             if(eq) {
                 let mlen = m1.matches.length;
+                let mtc1 = m1.matches.sort();
+                let mtc2 = m2.matches.sort();
                 for(let i = 0; i < mlen; i++) {
-                    if(m1[i] !== m2[i]) {
+                    if(mtc1[i] !== mtc2[i]) {
                         eq = false;
                         break;
                     }
