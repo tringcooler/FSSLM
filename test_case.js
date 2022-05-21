@@ -95,14 +95,25 @@ const TEST_CASE = ((...c_sslms) => {
                 this.stat.query_set = tset;
                 let lst_minfo = null;
                 let lst_r_minfo = null;
-                for(let sslm of sslms) {
+                let sslen = sslms.length;
+                for(let i = 0; i < sslen; i++) {
+                    let sslm = sslms[i];
+                    let match_stat = {};
+                    this.stat.match = match_stat;
+                    match_stat.idx = i;
+                    match_stat.rvs = false;
                     let minfo = sslm.match(tset, false);
-                    if(!this.minfo_cmp(minfo, lst_minfo)) {
+                    match_stat.result = minfo;
+                    if(lst_minfo && !this.minfo_cmp(minfo, lst_minfo)) {
+                        match_stat.last_result = lst_minfo;
                         this.raise_conflict();
                     }
                     lst_minfo = minfo;
+                    match_stat.rvs = true;
                     minfo = sslm.match(tset, true);
-                    if(!this.minfo_cmp(minfo, lst_r_minfo)) {
+                    match_stat.result = minfo;
+                    if(lst_r_minfo && !this.minfo_cmp(minfo, lst_r_minfo)) {
+                        match_stat.last_result = lst_r_minfo;
                         this.raise_conflict();
                     }
                     lst_r_minfo = minfo;
@@ -160,7 +171,7 @@ const TEST_CASE = ((...c_sslms) => {
             if(s.length === 0) continue;
             comb_seq.push(s);
         }
-        console.log(`test start for ${n} elments. ctrl + c to break.`);
+        console.log(`test start for ${n} elments ${comb_seq.length} sets. ctrl + c to break.`);
         let idx = 0;
         while(true) {
             console.log(`route ${++idx}`);
@@ -175,4 +186,4 @@ const TEST_CASE = ((...c_sslms) => {
         console.log('break');
     };
     
-})();
+});
