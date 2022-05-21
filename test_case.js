@@ -49,6 +49,28 @@ const TEST_CASE = ((...c_sslms) => {
         }
     }
     
+    const G_SHF_VRV = new VRV((function*() {
+        let i = 2;
+        while(true) {
+            yield i++;
+        }
+    })());
+    
+    function *vidpick(src, vid) {
+        let vec = G_SHF_VRV.vid2vec(vid);
+        let vlen = vec.length;
+        let seq = src.slice();
+        while((slen = seq.length) > 0) {
+            let r = 0;
+            if(slen <= vlen + 1 && slen > 1) {
+                r = vec[vlen + 1 - slen];
+            }
+            yield seq[r];
+            seq.splice(r, 1);
+        }
+    }
+    window.vidpick = vidpick;
+    
     class c_test_route {
         
         constructor(tseq, qseq) {
@@ -192,11 +214,28 @@ const TEST_CASE = ((...c_sslms) => {
             if(s.length === 0) continue;
             comb_seq.push(s);
         }
-        console.log(`test start for ${n} elments ${comb_seq.length} sets. ctrl + c to break.`);
+        let clen = comb_seq.length;
+        let shflen = 1;
+        for(let i = 2; i <= clen; i++) {
+            shflen *= i;
+            if(shflen > Number.MAX_SAFE_INTEGER) {
+                shflen = 'many';
+                break;
+            }
+        }
+        console.log(`test start for ${n} elments ${clen} sets ${shflen} shuffle. ctrl + c to break.`);
         let idx = 0;
         while(true) {
-            console.log(`route ${++idx}`);
-            let route = new c_test_route(randpick(comb_seq), comb_seq);
+            let tst_seq;
+            if(isNaN(shflen)) {
+                console.log(`route ${++idx}`);
+                tst_seq = randpick(comb_seq);
+            } else {
+                let rand_vid = Math.floor(Math.random() * shflen);
+                console.log(`route ${++idx}: ${rand_vid}`);
+                tst_seq = vidpick(comb_seq, rand_vid);
+            }
+            let route = new c_test_route(tst_seq, comb_seq);
             let is_break = false;
             for(let _ of route.step()) {
                 if(await G_BREAK.check()) {
