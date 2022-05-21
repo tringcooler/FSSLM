@@ -16,7 +16,6 @@ const TEST_CASE = ((...c_sslms) => {
             }
         }
     };
-    window.shuffle = shuffle;
     
     function *combine(src) {
         let slen = src.length;
@@ -30,14 +29,13 @@ const TEST_CASE = ((...c_sslms) => {
             yield stl.concat([hd]);
         }
     };
-    window.combine = combine;
     
     class c_test_route {
         
-        constructor(seq) {
+        constructor(tseq, qseq) {
             this.sslms = c_sslms.map(c => new c(true, true));
-            this.tseq = seq;
-            this.tidx = 0;
+            this.tseq = tseq;
+            this.qseq = qseq;
             this.nid = 0;
         }
         
@@ -68,9 +66,9 @@ const TEST_CASE = ((...c_sslms) => {
         }
         
         match() {
-            let tseq = this.tseq;
+            let qseq = this.qseq;
             let sslms = this.sslms;
-            for(let tset of tseq) {
+            for(let tset of qseq) {
                 let lst_minfo = null;
                 let lst_r_minfo = null;
                 for(let sslm of sslms) {
@@ -84,10 +82,16 @@ const TEST_CASE = ((...c_sslms) => {
             }
         }
         
-        step() {
-            let tset = this.tseq[this.tidx++];
+        step(tset) {
             this.set(tset);
             this.match();
+        }
+        
+        run() {
+            let tseq = this.tseq;
+            for(let tset of tseq) {
+                step(tset);
+            }
         }
         
     }
