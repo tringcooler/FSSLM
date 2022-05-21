@@ -153,8 +153,10 @@ const TEST_CASE = ((...c_sslms) => {
     
     class c_breakable {
         
-        constructor() {
+        constructor(space_ms = 1000) {
             this.to_break = false;
+            this.space_t = 1000;
+            this.last_ts = 0;
             this.hook();
         }
         
@@ -167,6 +169,11 @@ const TEST_CASE = ((...c_sslms) => {
         }
         
         async check(t = 0) {
+            let ts = Date.now();
+            if(ts - this.last_ts < this.space_t) {
+                return false;
+            }
+            this.last_ts = ts;
             await asleep(t);
             if(this.to_break) {
                 this.to_break = false;
@@ -190,10 +197,14 @@ const TEST_CASE = ((...c_sslms) => {
         while(true) {
             console.log(`route ${++idx}`);
             let route = new c_test_route(randpick(comb_seq), comb_seq);
+            let is_break = false;
             for(let _ of route.step()) {
-                //console.log('.');
+                if(await G_BREAK.check()) {
+                    is_break = true;
+                    break;
+                }
             }
-            if(await G_BREAK.check()) {
+            if(is_break) {
                 break;
             }
         }
