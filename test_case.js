@@ -69,12 +69,79 @@ const TEST_CASE = ((...c_sslms) => {
             seq.splice(r, 1);
         }
     }
-    window.vidpick = vidpick;
+    
+    class c_timer2 {
+        
+        constructor() {
+            this.unit_ts = null;
+            this.new_arr1();
+            this.new_arr2();
+        }
+        
+        new_arr1() {
+            this.arr1 = {
+                E: 0,
+                E2: 0,
+                D: 0,
+                n: 0,
+            };
+        }
+        
+        new_arr2() {
+            this.arr2 = {
+                E: 0,
+                E2: 0,
+                D: 0,
+                DE: 0,
+                ED: 0,
+                n: 0,
+            }
+        }
+        
+        time_start() {
+            this.unit_ts = performance.now();
+        }
+        
+        time_stop() {
+            if(!this.unit_ts) return;
+            let t = performance.now() - this.unit_ts;
+            this.unit_ts = null;
+            this.rec_unit(t);
+        }
+        
+        rec_unit(x) {
+            let arr = this.arr1;
+            let n = arr.n++;
+            arr.E = (n * arr.E + x) / (n + 1);
+            arr.E2 = (n * arr.E2 + x * x) / (n + 1);
+            arr.D = arr.E2 - arr.E * arr.E;
+        }
+        
+        arr1_done() {
+            let arr = this.arr1;
+            let mat = this.arr2;
+            let m = mat.n++;
+            mat.E = (m * mat.E + arr.E) / (m + 1);
+            mat.E2 = (m * mat.E2 + arr.E2) / (m + 1);
+            mat.D = mat.E2 - mat.E * mat.E;
+            mat.ED = (m * mat.ED + arr.D) / (m + 1);
+            mat.DE = mat.D - mat.ED;
+            this.new_arr1();
+        }
+        
+    }
+    
+    const _t1000fix3 = v => (v * 1000).toFixed(3);
     
     class c_test_route {
         
         constructor(tseq, qseq) {
             this.sslms = c_sslms.map(c => new c(true, true));
+            this.timers = c_sslms.map(c => ({
+                set: new c_timer2(),
+                match: new c_timer2(),
+                matchr: new c_timer2(),
+            }));
             this.ndset = {};
             this.tseq = tseq;
             this.qseq = qseq;
@@ -82,11 +149,37 @@ const TEST_CASE = ((...c_sslms) => {
             this.nid = 0;
         }
         
+        kick_timers() {
+            for(let {set, match, matchr} of this.timers) {
+                set.arr1_done();
+                match.arr1_done();
+                matchr.arr1_done();
+            }
+        }
+        
+        repr_timers() {
+            let r = '';
+            let timers = this.timers;
+            for(let i = 0; i < timers.length; i++) {
+                let tms = timers[i];
+                r += `  sslm ${i}:\n`
+                for(let k in tms) {
+                    let tm = tms[k];
+                    r += `    ${k}:\tE:${_t1000fix3(tm.arr2.E)}ns D:${_t1000fix3(tm.arr2.D)}ns ED:${_t1000fix3(tm.arr2.ED)}ns DE:${_t1000fix3(tm.arr2.DE)}ns\n`;
+                }
+            }
+            return r;
+        }
+        
         set(vset) {
             let sslms = this.sslms;
             let nid = ++this.nid;
-            for(let sslm of sslms) {
+            let sslen = sslms.length;
+            for(let i = 0; i < sslen; i++) {
+                let sslm = sslms[i];
+                this.timers[i].set.time_start();
                 sslm.set(vset, nid);
+                this.timers[i].set.time_stop();
             }
             this.ndset[nid] = vset;
         }
@@ -138,7 +231,9 @@ const TEST_CASE = ((...c_sslms) => {
                     this.stat.match = match_stat;
                     match_stat.idx = i;
                     match_stat.rvs = false;
+                    this.timers[i].match.time_start();
                     let minfo = sslm.match(tset, false);
+                    this.timers[i].match.time_stop();
                     match_stat.result = minfo;
                     if(lst_minfo && !this.minfo_cmp(minfo, lst_minfo)) {
                         match_stat.last_result = lst_minfo;
@@ -146,7 +241,9 @@ const TEST_CASE = ((...c_sslms) => {
                     }
                     lst_minfo = minfo;
                     match_stat.rvs = true;
+                    this.timers[i].matchr.time_start();
                     minfo = sslm.match(tset, true);
+                    this.timers[i].matchr.time_stop();
                     match_stat.result = minfo;
                     if(lst_r_minfo && !this.minfo_cmp(minfo, lst_r_minfo)) {
                         match_stat.last_result = lst_r_minfo;
@@ -163,6 +260,7 @@ const TEST_CASE = ((...c_sslms) => {
                 this.stat.test_set = tset;
                 this.set(tset);
                 this.match();
+                this.kick_timers();
                 yield tset;
             }
         }
@@ -243,6 +341,7 @@ const TEST_CASE = ((...c_sslms) => {
                     break;
                 }
             }
+            console.log(route.repr_timers());
             if(is_break) {
                 break;
             }
