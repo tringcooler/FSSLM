@@ -83,6 +83,8 @@ const TEST_CASE = ((...c_sslms) => {
                 E: 0,
                 E2: 0,
                 D: 0,
+                MX: 0,
+                MN: Infinity,
                 n: 0,
             };
         }
@@ -94,6 +96,14 @@ const TEST_CASE = ((...c_sslms) => {
                 D: 0,
                 DE: 0,
                 ED: 0,
+                MX: 0,
+                MN: Infinity,
+                EMX: 0,
+                EMX2: 0,
+                DMX: 0,
+                EMN: 0,
+                EMN2: 0,
+                DMN: 0,
                 n: 0,
             }
         }
@@ -115,6 +125,8 @@ const TEST_CASE = ((...c_sslms) => {
             arr.E = (n * arr.E + x) / (n + 1);
             arr.E2 = (n * arr.E2 + x * x) / (n + 1);
             arr.D = arr.E2 - arr.E * arr.E;
+            if(arr.MX < x) arr.MX = x;
+            if(arr.MN > x) arr.MN = x;
         }
         
         arr1_done() {
@@ -126,12 +138,21 @@ const TEST_CASE = ((...c_sslms) => {
             mat.D = mat.E2 - mat.E * mat.E;
             mat.ED = (m * mat.ED + arr.D) / (m + 1);
             mat.DE = mat.D - mat.ED;
+            if(mat.MX < arr.MX) mat.MX = arr.MX;
+            mat.EMX = (m * mat.EMX + arr.MX) / (m + 1);
+            mat.EMX2 = (m * mat.EMX2 + arr.MX * arr.MX) / (m + 1);
+            mat.DMX = mat.EMX2 - mat.EMX * mat.EMX;
+            if(mat.MN > arr.MN) mat.MN = arr.MN;
+            mat.EMN = (m * mat.EMN + arr.MN) / (m + 1);
+            mat.EMN2 = (m * mat.EMN2 + arr.MN * arr.MN) / (m + 1);
+            mat.DMN = mat.EMN2 - mat.EMN * mat.EMN;
             this.new_arr1();
         }
         
     }
     
     const _t1000fix3 = v => (v * 1000).toFixed(3);
+    const _rightpad = (s, n) => (s + ' '.repeat(n)).slice(0, n);
     
     class c_test_route {
         
@@ -157,18 +178,41 @@ const TEST_CASE = ((...c_sslms) => {
             }
         }
         
-        repr_timers() {
+        repr_timers(ak, iks) {
             let r = '';
             let timers = this.timers;
-            for(let i = 0; i < timers.length; i++) {
-                let tms = timers[i];
-                r += `  sslm ${i}:\n`
-                for(let k in tms) {
-                    let tm = tms[k];
-                    r += `    ${k}:\tE:${_t1000fix3(tm.arr2.E)}ns D:${_t1000fix3(tm.arr2.D)}ns ED:${_t1000fix3(tm.arr2.ED)}ns DE:${_t1000fix3(tm.arr2.DE)}ns\n`;
+            for(let k of ['set', 'match', 'matchr']) {
+                r += `  ${k}:\n`;
+                for(let i = 0; i < timers.length; i++) {
+                    let tm = timers[i][k];
+                    let ttl = `    ${i} `;
+                    r += ttl;
+                    for(let nm of iks) {
+                        if(!nm) {
+                            r += '\n' + ' '.repeat(ttl.length);
+                            continue;
+                        }
+                        let itm = `${nm}:${_t1000fix3(tm[ak][nm])}ns`;
+                        r += _rightpad(itm, 16);
+                    }
+                    r += '\n';
                 }
             }
             return r;
+        }
+        
+        repr_timers_row() {
+            return this.repr_timers(
+                'arr1',
+                ['E', 'D', 'MX', 'MN'],
+            );
+        }
+        
+        repr_timers_mat() {
+            return this.repr_timers(
+                'arr2',
+                ['E', 'D', 'ED', 'DE',, 'MX', 'EMX', 'DMX',/*, 'MN', 'EMN', 'DMN'*/],
+            );
         }
         
         set(vset) {
@@ -260,8 +304,8 @@ const TEST_CASE = ((...c_sslms) => {
                 this.stat.test_set = tset;
                 this.set(tset);
                 this.match();
-                this.kick_timers();
                 yield tset;
+                this.kick_timers();
             }
         }
         
@@ -321,6 +365,7 @@ const TEST_CASE = ((...c_sslms) => {
                 break;
             }
         }
+        let show_row = (clen > 256);
         console.log(`test start for ${n} elments ${clen} sets ${shflen} shuffle. ctrl + c to break.`);
         let idx = 0;
         while(true) {
@@ -335,15 +380,24 @@ const TEST_CASE = ((...c_sslms) => {
             }
             let route = new c_test_route(tst_seq, comb_seq);
             let is_break = false;
+            let rs_cnt = 0;
             for(let _ of route.step()) {
+                if(show_row) {
+                    console.log(`---${++rs_cnt}---`);
+                    console.log(route.repr_timers_row());
+                }
                 if(await G_BREAK.check()) {
                     is_break = true;
                     break;
                 }
             }
-            console.log(route.repr_timers());
             if(is_break) {
                 break;
+            } else {
+                if(show_row) {
+                    console.log('======');
+                }
+                console.log(route.repr_timers_mat());
             }
         }
         console.log('break');
