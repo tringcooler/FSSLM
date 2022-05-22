@@ -39,12 +39,16 @@ const TEST_CASE = ((...c_sslms) => {
         }
     }
     
-    function *randpick(src) {
+    function *randpick(src, mx = null) {
         let seq = src.slice();
         let slen;
+        let cnt = 0;
         while((slen = seq.length) > 0) {
             let r = Math.floor(Math.random() * slen);
             yield seq[r];
+            if(mx !== null && ++cnt >= mx) {
+                break;
+            }
             seq.splice(r, 1);
         }
     }
@@ -264,6 +268,9 @@ const TEST_CASE = ((...c_sslms) => {
         match() {
             let qseq = this.qseq;
             let sslms = this.sslms;
+            if(qseq.length > 5000) {
+                qseq = randpick(qseq, 1000);
+            }
             for(let tset of qseq) {
                 this.stat.query_set = tset;
                 let lst_minfo = null;
@@ -391,13 +398,15 @@ const TEST_CASE = ((...c_sslms) => {
                     break;
                 }
             }
+            if(show_row) {
+                console.log('======');
+            }
+            if(is_break) {
+                console.log('break');
+            }
+            console.log(route.repr_timers_mat());
             if(is_break) {
                 break;
-            } else {
-                if(show_row) {
-                    console.log('======');
-                }
-                console.log(route.repr_timers_mat());
             }
         }
         console.log('break');
