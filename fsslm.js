@@ -8,7 +8,7 @@ const FSSLM = (()=> {
         PR_N_DVAL,
         FLG_N_VALID,
         
-        PL_N_NXT, PR_N_LOOPCNT, PR_N_NEXTCNT,
+        PL_N_NXT, PR_N_LOOPCNT,
         
         PL_NR_NXT, PL_NR_CO,
         
@@ -29,11 +29,14 @@ const FSSLM = (()=> {
         PL_W_NDWLK,
         MTD_W_TAKE_CTX, MTD_W_TRIM_CTX, MTD_W_PUT_CTX,
         MTD_W_CALC_DELT,
+        MTD_W_ND_ITERNEXT,
         
         PR_W_ROOT,
         MTD_W_PRE_WALK,
         
         PR_W_QMORE,
+        
+        PL_N_PRV,
         
         PR_G_ROOT, PR_G_ROOT_RVS,
         
@@ -186,15 +189,10 @@ const FSSLM = (()=> {
                 super();
                 this[PL_N_NXT] = mapops.new();
                 this[PR_N_LOOPCNT] = 0;
-                this[PR_N_NEXTCNT] = 0;
             }
             
             get length() {
                 return this[PR_N_LOOPCNT];
-            }
-            
-            get length_next() {
-                return this[PR_N_NEXTCNT];
             }
             
             next(v) {
@@ -225,7 +223,6 @@ const FSSLM = (()=> {
             set_next(v, nnd) {
                 assert(nnd !== KEY_ND_LOOPBACK);
                 mapops.set(this[PL_N_NXT], v, nnd);
-                this[PR_N_NEXTCNT] ++;
             }
             
             set_loops(vset) {
@@ -658,12 +655,16 @@ const FSSLM = (()=> {
                 return nxt.length - cur.length;
             }
             
+            *[MTD_W_ND_ITERNEXT](nd) {
+                yield *nd.iter_next();
+            }
+            
             step() {
                 let [nd, wcnt] = this[MTD_W_TAKE_CTX]();
                 if(nd.valid) {
                     this[MTD_W_RET](nd, wcnt);
                 }
-                for(let [v, nxt] of nd.iter_next()) {
+                for(let [v, nxt] of this[MTD_W_ND_ITERNEXT](nd)) {
                     assert(nxt && nxt !== KEY_ND_LOOPBACK);
                     if(this[PL_W_NDWLK].has(nxt)) continue;
                     let dcnt = this[MTD_W_CALC_DELT](nd, nxt);
@@ -863,6 +864,24 @@ const FSSLM = (()=> {
                 ndinfo.loops = nloops;
                 ndinfo.repr = nloops.length ? nloops : '@';
                 return ndinfo
+            }
+            
+        }
+        
+        class c_ss_node_duplex extends c_ss_node {
+            
+            constructor() {
+                super();
+                this[PL_N_PRV] = mapops.new();
+            }
+            
+            *iter_prev() {
+                yield *mapops.iter(this[PL_N_PRV]);
+            }
+            
+            set_next(v, nnd) {
+                super.set_next(v, nnd);
+                mapops.set(nnd[PL_N_PRV], v, this);
             }
             
         }
