@@ -268,7 +268,7 @@ const TEST_CASE = ((...c_sslms) => {
         match() {
             let qseq = this.qseq;
             let sslms = this.sslms;
-            if(qseq.length > 5000) {
+            if(qseq.length > 1000) {
                 qseq = randpick(qseq, 1000);
             }
             for(let tset of qseq) {
