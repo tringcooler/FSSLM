@@ -755,9 +755,12 @@ const FSSLM = (()=> {
                 for(let v of root.iter_set()) {
                     co.add(v);
                 }
+                let cnt = 0;
                 for(let v of vset) {
                     co.delete(v);
+                    cnt ++;
                 }
+                return cnt;
             }
             
         }
@@ -886,9 +889,40 @@ const FSSLM = (()=> {
             
         }
         
+        class c_ss_walker_duplex extends c_ss_walker {
+            
+            [MTD_W_ND_NEW](loop_varr) {
+                let nd = new c_ss_node_duplex();
+                let wcnt = nd.set_loops(loop_varr);
+                return [nd, wcnt];
+            }
+            
+        }
+        
+        const c_ss_walker_add_duplex = meta_ss_walker_add(c_ss_walker_duplex);
+        
+        class c_ss_walker_nearest_duplex_reverse extends c_ss_walker_nearest_reverse {
+            
+            constructor(start) {
+                super(start);
+                this[PR_W_ROOT] = start;
+            }
+            
+            [MTD_W_RET](match, delt) {
+                if(match !== this[PR_W_ROOT]) {
+                    super[MTD_W_RET](match, delt);
+                }
+            }
+            
+            *[MTD_W_ND_ITERNEXT](nd) {
+                yield *nd.iter_prev();
+            }
+            
+        }
+        
         class c_ss_graph {
             
-            constructor(orig = true, rvs = false) {
+            constructor(orig = true, rvs = true) {
                 let root;
                 if(orig) {
                     this[PR_G_ROOT] = new c_ss_node();
@@ -990,7 +1024,80 @@ const FSSLM = (()=> {
             
         }
         
-        return c_ss_graph;
+        class c_ss_graph_duplex {
+            
+            constructor() {
+                this[PR_G_ROOT] = new c_ss_node_duplex();
+            }
+            
+            set(vset, dval) {
+                let wlkr = new c_ss_walker_add_duplex(this[PR_G_ROOT], vset);
+                wlkr.walk();
+                let dst = wlkr.dest;
+                dst.set(dval);
+            }
+            
+            match(vset, rvs = false, get_nodes = false) {
+                let rinfo = {
+                    matches: [],
+                    unmatch: Infinity,
+                    found: false,
+                };
+                if(get_nodes) {
+                    rinfo.nodes = [];
+                }
+                let wlkr = new c_ss_walker_match(this[PR_G_ROOT], vset);
+                wlkr.walk();
+                let rslt = wlkr.result;
+                let rmatch = rslt.match;
+                rinfo.unmatch = rslt.delt;
+                if(!rmatch) {
+                    /* pass */
+                } else if((!rvs || rslt.delt === 0) && rslt.valid) {
+                    if(get_nodes) {
+                        rinfo.nodes.push(rmatch);
+                    }
+                    rinfo.matches.push(rmatch.val);
+                    rinfo.found = true;
+                } else {
+                    if(rvs) {
+                        wlkr = new c_ss_walker_nearest_duplex_reverse(rmatch);
+                    } else {
+                        wlkr = new c_ss_walker_nearest(rmatch);
+                    }
+                    wlkr.walk();
+                    let rslt_nrst = wlkr.result;
+                    for(let nd of rslt_nrst.matches) {
+                        if(get_nodes) {
+                            rinfo.nodes.push(nd);
+                        }
+                        rinfo.matches.push(nd.val);
+                    }
+                    rinfo.unmatch += rslt_nrst.delt;
+                    rinfo.found = rslt_nrst.found;
+                }
+                return rinfo;
+            }
+            
+            remove(vset) {
+                let minfo = this.match(vset, false, true);
+                if(minfo.unmatch === 0) {
+                    assert(minfo.found && minfo.nodes.length === 1);
+                    minfo.nodes[0].unreg();
+                    return true;
+                }
+                return false;
+            }
+            
+            repr(rvs = null) {
+                let wlkr = new c_ss_walker_repr(this[PR_G_ROOT]);
+                wlkr.walk();
+                return wlkr.repr;
+            }
+            
+        }
+        
+        return c_ss_graph_duplex;
         
     };
     
