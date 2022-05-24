@@ -212,14 +212,6 @@ const FSSLM = (()=> {
                 }
             }
             
-            *iter_set() {
-                for(let [v, nxt] of mapops.iter(this[PL_N_NXT])) {
-                    if(nxt === KEY_ND_LOOPBACK) {
-                        yield v;
-                    }
-                }
-            }
-            
             set_next(v, nnd) {
                 assert(nnd !== KEY_ND_LOOPBACK);
                 mapops.set(this[PL_N_NXT], v, nnd);
@@ -320,7 +312,7 @@ const FSSLM = (()=> {
                     }
                 }
                 
-            }
+            };
         const c_ss_walker_match = meta_ss_walker_match(c_ss_walker);
             
         const meta_ss_walker_add = c_ss_walker_base =>
@@ -871,23 +863,52 @@ const FSSLM = (()=> {
             
         }
         
-        class c_ss_node_duplex extends c_ss_node {
+        class c_ss_node_top {
             
             constructor() {
-                super();
-                this[PL_N_PRV] = mapops.new();
             }
             
-            *iter_prev() {
-                yield *mapops.iter(this[PL_N_PRV]);
+            get valid() {
+                return false;
             }
             
-            set_next(v, nnd) {
-                super.set_next(v, nnd);
-                mapops.set(nnd[PL_N_PRV], v, this);
+            get length() {
+                return Infinity;
+            }
+            
+            next(v) {
+                return KEY_ND_LOOPBACK;
+            }
+            
+            *iter() {
+                /* TODO */
+            }
+            
+            *iter_next() {
+                return;
             }
             
         }
+        
+        const meta_ss_node_duplex = c_ss_node_simplex =>
+            class c_ss_node_duplex extends c_ss_node_simplex {
+                
+                constructor() {
+                    super();
+                    this[PL_N_PRV] = mapops.new();
+                }
+                
+                *iter_prev() {
+                    yield *mapops.iter(this[PL_N_PRV]);
+                }
+                
+                set_next(v, nnd) {
+                    super.set_next(v, nnd);
+                    mapops.set(nnd[PL_N_PRV], v, this);
+                }
+                
+            };
+        const c_ss_node_duplex = meta_ss_node_duplex(c_ss_node);
         
         class c_ss_walker_duplex extends c_ss_walker {
             
