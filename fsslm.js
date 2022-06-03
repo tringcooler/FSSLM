@@ -1270,6 +1270,15 @@ const FSSLM = (()=> {
         test3: test_sets.bind(null, [
             'a', 'b', 'c', 'd', 'ab',
         ]),
+        test1: test_sets.bind(null, [
+            'a', 'abce', 'abc', 'abdf', 'abde',
+        ]),
+        test1: test_sets.bind(null, [
+            'a', 'abce', 'abc', 'abd', 'abde',
+        ]),
+        test1: test_sets.bind(null, [
+            'a', 'abcde', 'abe', /*'ab',*/ 'c', 'abcdf',
+        ]),
     };
     
 })();
