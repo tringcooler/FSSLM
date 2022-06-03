@@ -213,6 +213,14 @@ const FSSLM = (()=> {
                 }
             }
             
+            *iter_set() {
+                for(let [v, nxt] of mapops.iter(this[PL_N_NXT])) {
+                    if(nxt === KEY_ND_LOOPBACK) {
+                        yield v;
+                    }
+                }
+            }
+            
             set_next(v, nnd) {
                 assert(nnd !== KEY_ND_LOOPBACK);
                 mapops.set(this[PL_N_NXT], v, nnd);
@@ -888,11 +896,18 @@ const FSSLM = (()=> {
             }
             
             set_prev(pnd) {
+                console.log('set_prev', [...this.iter_set()].sort(), '->', [...pnd.iter_set()].sort());
                 this[PL_N_PRV].add(pnd);
             }
             
             remove_prev(pnd) {
+                console.log('remove_prev', [...this.iter_set()].sort(), '->', [...pnd.iter_set()].sort());
                 this[PL_N_PRV].delete(pnd);
+            }
+            
+            set_next(v, nxt) {
+                super.set_next(v, nxt);
+                console.log('set_next', v, [...nxt.iter_set()].sort(), '<-', [...this.iter_set()].sort());
             }
             
         };
