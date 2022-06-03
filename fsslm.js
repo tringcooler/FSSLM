@@ -399,6 +399,9 @@ const FSSLM = (()=> {
                 }
                 
                 [MTD_W_CLONE_SUB_KEY](par_nd, sub_nd) {
+                    if(par_nd === KEY_ND_TOP) {
+                        return;
+                    }
                     for(let [v, nxt] of this[MTD_W_ND_ITER](par_nd)) {
                         if(sub_nd.next(v)) {
                             continue;
@@ -416,9 +419,7 @@ const FSSLM = (()=> {
                     let nd = par_ndinfo.sub;
                     if(!nd) {
                         nd = this[MTD_W_NEW_SUB_NODE](next_varr);
-                        if(par_nd !== KEY_ND_TOP) {
-                            this[MTD_W_CLONE_SUB_KEY](par_nd, nd);
-                        }
+                        this[MTD_W_CLONE_SUB_KEY](par_nd, nd);
                         par_ndinfo.sub = nd;
                     }
                     return nd;
@@ -898,6 +899,11 @@ const FSSLM = (()=> {
         
         class c_ss_walker_add_duplex extends c_ss_walker_add {
             
+            constructor(start, vset) {
+                super(start, vset);
+                this[PR_W_ROOT] = start;
+            }
+            
             [MTD_W_ND_NEW](loop_varr) {
                 let nd = new c_ss_node_duplex();
                 let wcnt = nd.set_loops(loop_varr);
@@ -905,17 +911,12 @@ const FSSLM = (()=> {
             }
             
             [MTD_W_CLONE_SUB_KEY](par_nd, sub_nd) {
-                for(let [v, nxt] of this[MTD_W_ND_ITER](par_nd)) {
-                    if(sub_nd.next(v)) {
-                        continue;
-                    }
-                    if(nxt === KEY_ND_LOOPBACK) {
-                        sub_nd.set_next(v, par_nd);
-                        par_nd.set_prev(sub_nd);
-                    } else {
-                        sub_nd.set_next(v, nxt);
-                    }
+                super[MTD_W_CLONE_SUB_KEY](par_nd, sub_nd);
+                assert(par_nd !== this[PR_W_ROOT]);
+                if(par_nd === KEY_ND_TOP) {
+                    par_nd = this[PR_W_ROOT];
                 }
+                par_nd.set_prev(sub_nd);
             }
             
             [MTD_W_RELINK_SUB_NODE](par_ndinfo, par_nd, prv_ndinfo, prv_nd, prv_kv, src_varr, strp_varr) {
