@@ -924,7 +924,12 @@ const FSSLM = (()=> {
                     par_ndinfo, par_nd, prv_ndinfo, prv_nd, prv_kv, src_varr, strp_varr
                 );
                 let [sub_nd, relink_nd] = r_pair;
-                par_nd.remove_prev(relink_nd);
+                assert(par_nd !== this[PR_W_ROOT]);
+                if(par_nd === KEY_ND_TOP) {
+                    this[PR_W_ROOT].remove_prev(relink_nd);
+                } else {
+                    par_nd.remove_prev(relink_nd);
+                }
                 if( sub_nd.has_prev(relink_nd)
                     || par_ndinfo.ud_link?.has?.(relink_nd) ) {
                     return r_pair;
@@ -933,6 +938,10 @@ const FSSLM = (()=> {
                 let dir_link = true;
                 for(let v of rm_varr) {
                     let pn_nd = prv_nd.next(v);
+                    assert(pn_nd !== KEY_ND_LOOPBACK);
+                    if(!pn_nd) {
+                        pn_nd = KEY_ND_TOP;
+                    }
                     if(pn_nd !== par_nd && pn_nd !== sub_nd) {
                         dir_link = false;
                         break;
@@ -1090,6 +1099,7 @@ const FSSLM = (()=> {
             }
             
             match(vset, rvs = false, get_nodes = false) {
+                throw Error('unimplement');
                 let rinfo = {
                     matches: [],
                     unmatch: Infinity,
@@ -1149,7 +1159,7 @@ const FSSLM = (()=> {
             
         }
         
-        return c_ss_graph;
+        return c_ss_graph_duplex;
         
     };
     
