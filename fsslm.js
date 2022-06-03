@@ -962,6 +962,20 @@ const FSSLM = (()=> {
             
         }
         
+        class c_ss_walker_repr_duplex_reverse extends c_ss_walker_repr {
+            
+            [MTD_W_PARSE_NODE_INFO](nd) {
+                let ndinfo = super[MTD_W_PARSE_NODE_INFO](nd);
+                let nnexts = [];
+                for(let nxt of nd.iter_prev()) {
+                    nnexts.push([null, nxt]);
+                }
+                ndinfo.nexts = nnexts;
+                return ndinfo
+            }
+            
+        }
+        
         class c_ss_walker_nearest_duplex_reverse extends c_ss_walker_nearest_reverse {
             
             constructor(start) {
@@ -1151,8 +1165,13 @@ const FSSLM = (()=> {
                 return false;
             }
             
-            repr(rvs = null) {
+            repr(rvs = false) {
                 let wlkr = new c_ss_walker_repr(this[PR_G_ROOT]);
+                if(rvs) {
+                    wlkr = new c_ss_walker_repr_duplex_reverse(this[PR_G_ROOT]);
+                } else {
+                    wlkr = new c_ss_walker_repr(this[PR_G_ROOT]);
+                }
                 wlkr.walk();
                 return wlkr.repr;
             }
