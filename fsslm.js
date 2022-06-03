@@ -896,18 +896,11 @@ const FSSLM = (()=> {
             }
             
             set_prev(pnd) {
-                console.log('set_prev', [...this.iter_set()].sort(), '->', [...pnd.iter_set()].sort());
                 this[PL_N_PRV].add(pnd);
             }
             
             remove_prev(pnd) {
-                console.log('remove_prev', [...this.iter_set()].sort(), '->', [...pnd.iter_set()].sort());
                 this[PL_N_PRV].delete(pnd);
-            }
-            
-            set_next(v, nxt) {
-                super.set_next(v, nxt);
-                console.log('set_next', v, [...nxt.iter_set()].sort(), '<-', [...this.iter_set()].sort());
             }
             
         };
