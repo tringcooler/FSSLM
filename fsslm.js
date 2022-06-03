@@ -22,7 +22,8 @@ const FSSLM = (()=> {
         PR_W_DSTND,
         MTD_W_STRIP_VARR,
         MTD_W_PARSE_NODE_INFO, MTD_W_GET_NODE_INFO,
-        MTD_W_NEW_SUB_NODE, MTD_W_CLONE_SUB_KEY, MTD_W_GET_SUB_NODE,
+        MTD_W_NEW_SUB_NODE, MTD_W_CLONE_SUB_KEY,
+        MTD_W_GET_SUB_NODE, MTD_W_RELINK_SUB_NODE,
         
         PR_W_NID, PR_W_REPR,
         
@@ -205,9 +206,9 @@ const FSSLM = (()=> {
             }
             
             *iter_next() {
-                for(let pair of mapops.iter(this[PL_N_NXT])) {
-                    if(pair[1] !== KEY_ND_LOOPBACK) {
-                        yield pair;
+                for(let [v, nxt] of mapops.iter(this[PL_N_NXT])) {
+                    if(nxt !== KEY_ND_LOOPBACK) {
+                        yield nxt;
                     }
                 }
             }
@@ -423,15 +424,20 @@ const FSSLM = (()=> {
                     return nd;
                 }
                 
+                [MTD_W_RELINK_SUB_NODE](par_ndinfo, par_nd, prv_ndinfo, prv_nd, prv_kv, src_varr, strp_varr) {
+                    let sub_nd = this[MTD_W_GET_SUB_NODE](par_ndinfo, par_nd, strp_varr);
+                    let relink_nd = prv_ndinfo.sub ?? prv_nd;
+                    relink_nd.set_next(prv_kv, sub_nd);
+                    return [sub_nd, relink_nd];
+                }
+                
                 step() {
                     let [nd, varr, pnd, pkv, wcnt] = this[PL_W_CUR].shift();
                     let ndinfo = this[MTD_W_GET_NODE_INFO](nd, varr, wcnt);
                     let strp_varr = ndinfo.varr;
                     if(ndinfo.qless) {
-                        let sub_nd = this[MTD_W_GET_SUB_NODE](ndinfo, nd, strp_varr);
                         let prv_ndinfo = this[MTD_W_GET_NODE_INFO](pnd, null, null);
-                        let relink_nd = prv_ndinfo.sub ?? pnd;
-                        relink_nd.set_next(pkv, sub_nd);
+                        this[MTD_W_RELINK_SUB_NODE](ndinfo, nd, prv_ndinfo, pnd, pkv, varr, strp_varr);
                         if(!ndinfo.qmore) {
                             // q < n
                             ndinfo.walked = true;
@@ -656,7 +662,7 @@ const FSSLM = (()=> {
                 if(nd.valid) {
                     this[MTD_W_RET](nd, wcnt);
                 }
-                for(let [v, nxt] of this[MTD_W_ND_ITERNEXT](nd)) {
+                for(let nxt of this[MTD_W_ND_ITERNEXT](nd)) {
                     assert(nxt && nxt !== KEY_ND_LOOPBACK);
                     if(this[PL_W_NDWLK].has(nxt)) continue;
                     let dcnt = this[MTD_W_CALC_DELT](nd, nxt);
@@ -717,7 +723,9 @@ const FSSLM = (()=> {
             }
             
             *iter_next() {
-                yield *mapops.iter(this[PL_NR_NXT]);
+                for(let [v, nxt] of mapops.iter(this[PL_NR_NXT])) {
+                    yield nxt;
+                }
             }
             
             *iter_set() {
@@ -863,54 +871,32 @@ const FSSLM = (()=> {
             
         }
         
-        class c_ss_node_top {
+        class c_ss_node_duplex extends c_ss_node {
             
             constructor() {
+                super();
+                this[PL_N_PRV] = new Set();
             }
             
-            get valid() {
-                return false;
+            *iter_prev() {
+                yield *this[PL_N_PRV];
             }
             
-            get length() {
-                return Infinity;
+            has_prev(pnd) {
+                return this[PL_N_PRV].has(pnd);
             }
             
-            next(v) {
-                return KEY_ND_LOOPBACK;
+            set_prev(pnd) {
+                this[PL_N_PRV].add(pnd);
             }
             
-            *iter() {
-                /* TODO */
+            remove_prev(pnd) {
+                this[PL_N_PRV].delete(pnd);
             }
             
-            *iter_next() {
-                return;
-            }
-            
-        }
+        };
         
-        const meta_ss_node_duplex = c_ss_node_simplex =>
-            class c_ss_node_duplex extends c_ss_node_simplex {
-                
-                constructor() {
-                    super();
-                    this[PL_N_PRV] = mapops.new();
-                }
-                
-                *iter_prev() {
-                    yield *mapops.iter(this[PL_N_PRV]);
-                }
-                
-                set_next(v, nnd) {
-                    super.set_next(v, nnd);
-                    mapops.set(nnd[PL_N_PRV], v, this);
-                }
-                
-            };
-        const c_ss_node_duplex = meta_ss_node_duplex(c_ss_node);
-        
-        class c_ss_walker_duplex extends c_ss_walker {
+        class c_ss_walker_add_duplex extends c_ss_walker_add {
             
             [MTD_W_ND_NEW](loop_varr) {
                 let nd = new c_ss_node_duplex();
@@ -918,9 +904,53 @@ const FSSLM = (()=> {
                 return [nd, wcnt];
             }
             
+            [MTD_W_CLONE_SUB_KEY](par_nd, sub_nd) {
+                for(let [v, nxt] of this[MTD_W_ND_ITER](par_nd)) {
+                    if(sub_nd.next(v)) {
+                        continue;
+                    }
+                    if(nxt === KEY_ND_LOOPBACK) {
+                        sub_nd.set_next(v, par_nd);
+                        par_nd.set_prev(sub_nd);
+                    } else {
+                        sub_nd.set_next(v, nxt);
+                    }
+                }
+            }
+            
+            [MTD_W_RELINK_SUB_NODE](par_ndinfo, par_nd, prv_ndinfo, prv_nd, prv_kv, src_varr, strp_varr) {
+                let r_pair = super[MTD_W_RELINK_SUB_NODE](
+                    par_ndinfo, par_nd, prv_ndinfo, prv_nd, prv_kv, src_varr, strp_varr
+                );
+                let [sub_nd, relink_nd] = r_pair;
+                par_nd.remove_prev(relink_nd);
+                if( sub_nd.has_prev(relink_nd)
+                    || par_ndinfo.ud_link?.has?.(relink_nd) ) {
+                    return r_pair;
+                }
+                let rm_varr = strp_varr.clone().inverse().merge(src_varr);
+                let dir_link = true;
+                for(let v of rm_varr) {
+                    let pn_nd = prv_nd.next(v);
+                    if(pn_nd !== par_nd && pn_nd !== sub_nd) {
+                        dir_link = false;
+                        break;
+                    }
+                }
+                if(dir_link) {
+                    sub_nd.set_prev(relink_nd);
+                } else {
+                    let udlk = par_ndinfo.ud_link;
+                    if(!udlk) {
+                        udlk = new Set();
+                        par_ndinfo.ud_link = udlk;
+                    }
+                    udlk.add(relink_nd);
+                }
+                return r_pair;
+            }
+            
         }
-        
-        const c_ss_walker_add_duplex = meta_ss_walker_add(c_ss_walker_duplex);
         
         class c_ss_walker_nearest_duplex_reverse extends c_ss_walker_nearest_reverse {
             
@@ -1118,7 +1148,7 @@ const FSSLM = (()=> {
             
         }
         
-        return c_ss_graph_duplex;
+        return c_ss_graph;
         
     };
     
