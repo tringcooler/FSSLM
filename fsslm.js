@@ -984,6 +984,47 @@ const FSSLM = (()=> {
             
         }
         
+        class c_ss_walker_match_duplex_reverse extends c_ss_walker_match {
+            
+            [MTD_W_PRE_WALK]() {
+                let [start, varr] = this[PL_W_CUR][0];
+                let qmore = 0;
+                for(let i = varr.length - 1; i >= 0; i--) {
+                    let v = varr[i];
+                    if(!start.next(v)) {
+                        varr.pop();
+                        qmore ++;
+                    }
+                }
+                this[PR_W_QMORE] = qmore;
+            }
+            
+            [MTD_W_RET](match, dcnt) {
+                assert(this.done);
+                let s = this[PL_W_STAT];
+                let delt = dcnt + this[PR_W_QMORE];
+                s.cmplt = (dcnt === 0);
+                s.valid = match?.valid ?? false;
+                if(dcnt > 0) {
+                    
+                } else {
+                    
+                }
+            }
+            
+            [MTD_W_STEP_PREV]() {
+                
+            }
+            
+            walk() {
+                if(!this.done) {
+                    this[MTD_W_PRE_WALK]();
+                    super.walk();
+                }
+            }
+            
+        }
+        
         class c_ss_walker_nearest_duplex_reverse extends c_ss_walker_nearest_reverse {
             
             constructor(start, vset) {
@@ -1185,9 +1226,16 @@ const FSSLM = (()=> {
                 if(get_nodes) {
                     rinfo.nodes = [];
                 }
-                let wlkr = new c_ss_walker_match(this[PR_G_ROOT], vset);
+                let c_wlkr;
+                if(rvs) {
+                    c_wlkr = c_ss_walker_match_duplex_reverse;
+                } else {
+                    c_wlkr = c_ss_walker_match;
+                }
+                let wlkr = new c_wlkr(this[PR_G_ROOT], vset);
                 wlkr.walk();
                 let rslt = wlkr.result;
+                console.log(rslt);
                 let rmatch = rslt.match;
                 if(rvs) {
                     if(rmatch === this[PR_G_ROOT]) {
