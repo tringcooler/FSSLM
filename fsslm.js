@@ -31,6 +31,7 @@ const FSSLM = (()=> {
         MTD_W_TAKE_CTX, MTD_W_TRIM_CTX, MTD_W_PUT_CTX,
         MTD_W_CALC_DELT,
         MTD_W_ND_ITERNEXT,
+        MTD_W_STEP_SKIP,
         
         PR_W_ROOT,
         MTD_W_PRE_WALK,
@@ -38,6 +39,8 @@ const FSSLM = (()=> {
         PR_W_QMORE,
         
         PL_N_PRV,
+        
+        PR_W_COVARR,
         
         PR_G_ROOT, PR_G_ROOT_RVS,
         
@@ -666,6 +669,15 @@ const FSSLM = (()=> {
                 yield *nd.iter_next();
             }
             
+            [MTD_W_STEP_SKIP](cur, nxt) {
+                if(this[PL_W_NDWLK].has(nxt)) {
+                    return true;
+                } else {
+                    this[PL_W_NDWLK].add(nxt);
+                    return false;
+                }
+            }
+            
             step() {
                 let [nd, wcnt] = this[MTD_W_TAKE_CTX]();
                 if(nd.valid) {
@@ -673,11 +685,12 @@ const FSSLM = (()=> {
                 }
                 for(let nxt of this[MTD_W_ND_ITERNEXT](nd)) {
                     assert(nxt && nxt !== KEY_ND_LOOPBACK);
-                    if(this[PL_W_NDWLK].has(nxt)) continue;
+                    if(this[MTD_W_STEP_SKIP](nd, nxt)) {
+                        continue;
+                    }
                     let dcnt = this[MTD_W_CALC_DELT](nd, nxt);
                     assert(dcnt > 0);
                     this[MTD_W_PUT_CTX]([nxt, wcnt + dcnt], dcnt);
-                    this[PL_W_NDWLK].add(nxt);
                 }
                 this[MTD_W_TRIM_CTX]();
             }
@@ -986,9 +999,17 @@ const FSSLM = (()=> {
         
         class c_ss_walker_nearest_duplex_reverse extends c_ss_walker_nearest_reverse {
             
-            constructor(start) {
+            constructor(start, vset) {
                 super(start);
                 this[PR_W_ROOT] = start;
+                vset = new Set(vset);
+                let co_varr = [];
+                for(let v of start.iter_set()) {
+                    if(!vset.has(v)) {
+                        co_varr.push(v);
+                    }
+                }
+                this[PR_W_COVARR] = co_varr;
             }
             
             [MTD_W_RET](match, delt) {
@@ -999,6 +1020,21 @@ const FSSLM = (()=> {
             
             *[MTD_W_ND_ITERNEXT](nd) {
                 yield *nd.iter_prev();
+            }
+            
+            [MTD_W_STEP_SKIP](cur, nxt) {
+                if(super[MTD_W_STEP_SKIP](cur, nxt)) {
+                    return true;
+                }
+                if(cur === this[PR_W_ROOT]) {
+                    return false;
+                }
+                for(let v of this[PR_W_COVARR]) {
+                    if(nxt.next(v) === KEY_ND_LOOPBACK) {
+                        return true;
+                    }
+                }
+                return false;
             }
             
         }
@@ -1121,7 +1157,6 @@ const FSSLM = (()=> {
             }
             
             match(vset, rvs = false, get_nodes = false) {
-                throw Error('unimplement');
                 let rinfo = {
                     matches: [],
                     unmatch: Infinity,
@@ -1134,6 +1169,9 @@ const FSSLM = (()=> {
                 wlkr.walk();
                 let rslt = wlkr.result;
                 let rmatch = rslt.match;
+                if(!rmatch && rvs) {
+                    rmatch = this[PR_G_ROOT];
+                }
                 rinfo.unmatch = rslt.delt;
                 if(!rmatch) {
                     /* pass */
@@ -1145,7 +1183,7 @@ const FSSLM = (()=> {
                     rinfo.found = true;
                 } else {
                     if(rvs) {
-                        wlkr = new c_ss_walker_nearest_duplex_reverse(rmatch);
+                        wlkr = new c_ss_walker_nearest_duplex_reverse(rmatch, vset);
                     } else {
                         wlkr = new c_ss_walker_nearest(rmatch);
                     }
