@@ -40,7 +40,7 @@ const FSSLM = (()=> {
         
         PL_N_PRV,
         
-        PR_W_COVARR,
+        PR_W_COVARR, PR_W_ASETLEN,
         
         PR_G_ROOT, PR_G_ROOT_RVS,
         
@@ -997,19 +997,48 @@ const FSSLM = (()=> {
             
         }
         
-        class c_ss_walker_nearest_duplex_reverse extends c_ss_walker_nearest_reverse {
+        class c_ss_walker_nearest_duplex_reverse extends c_ss_walker_nearest {
             
             constructor(start, vset) {
                 super(start);
                 this[PR_W_ROOT] = start;
                 vset = new Set(vset);
                 let co_varr = [];
-                for(let v of start.iter_set()) {
+                let st_iter;
+                let is_root = (start.length === 0);
+                if(is_root) {
+                    st_iter = start.iter();
+                } else {
+                    st_iter = start.iter_set();
+                }
+                let alen = 0;
+                for(let itm of st_iter) {
+                    let v;
+                    if(is_root) {
+                        if(itm[1] === KEY_ND_LOOPBACK) {
+                            continue;
+                        }
+                        v = itm[0];
+                    } else {
+                        v = itm;
+                    }
+                    alen ++;
                     if(!vset.has(v)) {
                         co_varr.push(v);
                     }
                 }
                 this[PR_W_COVARR] = co_varr;
+                this[PR_W_ASETLEN] = alen;
+            }
+            
+            [MTD_W_CALC_DELT](cur, nxt) {
+                let clen;
+                if(cur === this[PR_W_ROOT]) {
+                    clen = this[PR_W_ASETLEN];
+                } else {
+                    clen = cur.length;
+                }
+                return clen - nxt.length;
             }
             
             [MTD_W_RET](match, delt) {
@@ -1169,8 +1198,12 @@ const FSSLM = (()=> {
                 wlkr.walk();
                 let rslt = wlkr.result;
                 let rmatch = rslt.match;
-                if(!rmatch && rvs) {
-                    rmatch = this[PR_G_ROOT];
+                if(rvs) {
+                    if(rmatch === this[PR_G_ROOT]) {
+                        rmatch = null;
+                    } else if(!rmatch) {
+                        rmatch = this[PR_G_ROOT];
+                    }
                 }
                 rinfo.unmatch = rslt.delt;
                 if(!rmatch) {
