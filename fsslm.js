@@ -688,7 +688,7 @@ const FSSLM = (()=> {
                 }
                 for(let nxt of this[MTD_W_ND_ITERNEXT](nd)) {
                     assert(nxt && nxt !== KEY_ND_LOOPBACK);
-                    if(this[PL_W_NDWLK].has(nxt)) continue;
+                    if(nxt.length === 0 || this[PL_W_NDWLK].has(nxt)) continue;
                     let dcnt = this[MTD_W_CALC_DELT](ctx, nd, nxt);
                     assert(dcnt > 0);
                     this[MTD_W_PUT_CTX](this[MTD_W_NXTCTX](ctx, nxt, wcnt + dcnt), dcnt);
@@ -1091,6 +1091,7 @@ const FSSLM = (()=> {
                 let clen = ctx[3];
                 if(clen === undefined) {
                     clen = cur.length;
+                    assert(clen > 0);
                 }
                 return clen - nxt.length;
             }
@@ -1239,16 +1240,16 @@ const FSSLM = (()=> {
                 let wlkr = new c_wlkr(this[PR_G_ROOT], vset);
                 wlkr.walk();
                 let rslt = wlkr.result;
-                console.log(rslt);
                 let rmatch = rslt.match;
+                rinfo.unmatch = rslt.delt;
                 if(rvs) {
                     if(rmatch === this[PR_G_ROOT]) {
                         rmatch = null;
+                        rinfo.unmatch = Infinity;
                     } else if(!rmatch) {
                         rmatch = this[PR_G_ROOT];
                     }
                 }
-                rinfo.unmatch = rslt.delt;
                 if(!rmatch) {
                     /* pass */
                 } else if((!rvs || rslt.delt === 0) && rslt.valid) {
