@@ -1007,7 +1007,14 @@ const FSSLM = (()=> {
             }
             
             [MTD_W_RET](match, dcnt) {
-                super[MTD_W_RET](match, dcnt - this[PR_W_QMORE]);
+                let qmore = this[PR_W_QMORE];
+                if(qmore > 0) {
+                    dcnt -= qmore
+                    super[MTD_W_RET](match, dcnt);
+                    this[PL_W_STAT].cmplt = false;
+                } else {
+                    super[MTD_W_RET](match, dcnt);
+                }
             }
             
             [MTD_W_VOID]() {
@@ -1252,7 +1259,7 @@ const FSSLM = (()=> {
                 }
                 if(!rmatch) {
                     /* pass */
-                } else if((!rvs || rslt.delt === 0) && rslt.valid) {
+                } else if((!rvs || rslt.cmplt) && rslt.valid) {
                     if(get_nodes) {
                         rinfo.nodes.push(rmatch);
                     }
