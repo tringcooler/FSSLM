@@ -1035,7 +1035,6 @@ const FSSLM = (()=> {
                     st_iter = start.iter_set();
                 }
                 let start_len = 0;
-                let intsct_len = 0;
                 for(let itm of st_iter) {
                     let v;
                     if(is_root) {
@@ -1047,13 +1046,10 @@ const FSSLM = (()=> {
                         v = itm;
                     }
                     start_len ++;
-                    if(vset.has(v)) {
-                        intsct_len ++;
-                    } else {
+                    if(!vset.has(v)) {
                         co_varr.push(v);
                     }
                 }
-                ctx[1] += vset.size - intsct_len;
                 ctx[2] = new c_masked_arr(co_varr);
                 ctx.push(start_len);
             }
@@ -1178,7 +1174,7 @@ const FSSLM = (()=> {
                         }
                         rinfo.matches.push(nd.val);
                     }
-                    rinfo.unmatch += rslt_nrst.delt;
+                    rinfo.unmatch += rslt_nrst.delt; // maybe no add
                     rinfo.found = rslt_nrst.found;
                 }
                 return rinfo;
@@ -1275,7 +1271,7 @@ const FSSLM = (()=> {
                         }
                         rinfo.matches.push(nd.val);
                     }
-                    rinfo.unmatch += rslt_nrst.delt;
+                    rinfo.unmatch = rslt_nrst.delt;
                     rinfo.found = rslt_nrst.found;
                 }
                 return rinfo;
