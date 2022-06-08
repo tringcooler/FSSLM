@@ -1392,6 +1392,9 @@ const FSSLM = (()=> {
         test3: test_sets.bind(null, [
             'a', 'b', 'c', 'd', 'ab',
         ]),
+        test1: test_sets.bind(null, [
+            'abcd', 'def', //match('adef', true) != match('defa', true)
+        ]),
     };
     
 })();
