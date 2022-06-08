@@ -528,7 +528,7 @@ const FSSLM = (()=> {
                         }
                     }
                     loops.sort();
-                    nexts.sort((a, b) => a[0].localeCompare(b[0]));
+                    nexts.sort((a, b) => a[0]?.localeCompare?.(b[0]) ?? a[0] - b[0]);
                     return {
                         nid: this[PR_W_NID]++,
                         loops: loops,
