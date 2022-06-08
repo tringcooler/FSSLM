@@ -198,6 +198,10 @@ const FSSLM = (()=> {
                 return this[PR_N_LOOPCNT];
             }
             
+            get length_next() {
+                return mapops.size(this[PL_N_NXT]) - this[PR_N_LOOPCNT];
+            }
+            
             next(v) {
                 let nxt = mapops.get(this[PL_N_NXT], v);
                 return nxt ?? null;
@@ -231,6 +235,7 @@ const FSSLM = (()=> {
             set_loops(vset) {
                 let cnt = 0;
                 for(let v of vset) {
+                    assert(!mapops.get(this[PL_N_NXT], v));
                     mapops.set(this[PL_N_NXT], v, KEY_ND_LOOPBACK);
                     cnt ++;
                 }
@@ -300,7 +305,7 @@ const FSSLM = (()=> {
                     return this.done ? this[PL_W_STAT] : null;
                 }
                 
-                [MTD_W_VOID]() {
+                [MTD_W_VOID](v) {
                     this[PL_W_CUR].shift();
                     this[MTD_W_RET](null, Infinity);
                 }
@@ -323,7 +328,7 @@ const FSSLM = (()=> {
                     } else if(nxt) {
                         cseq[0] = [nxt, varr, nd, v, wcnt + 1];
                     } else {
-                        this[MTD_W_VOID]();
+                        this[MTD_W_VOID](v);
                     }
                 }
                 
@@ -1004,21 +1009,27 @@ const FSSLM = (()=> {
             constructor(start, vset) {
                 super(start, vset);
                 this[PR_W_QMORE] = 0;
+                this[PR_W_ROOT] = start;
             }
             
             [MTD_W_RET](match, dcnt) {
                 let qmore = this[PR_W_QMORE];
+                super[MTD_W_RET](match, dcnt - qmore);
                 if(qmore > 0) {
-                    dcnt -= qmore
-                    super[MTD_W_RET](match, dcnt);
-                    this[PL_W_STAT].cmplt = false;
-                } else {
-                    super[MTD_W_RET](match, dcnt);
+                    let s = this[PL_W_STAT];
+                    s.cmplt = false;
+                    s.qmore = !!match;
                 }
             }
             
-            [MTD_W_VOID]() {
-                this[PR_W_QMORE] ++;
+            [MTD_W_VOID](v) {
+                let rn = this[PR_W_ROOT].next(v);
+                if(rn) {
+                    assert(rn !== KEY_ND_LOOPBACK);
+                    super[MTD_W_VOID](v);
+                } else {
+                    this[PR_W_QMORE] ++;
+                }
             }
             
         }
