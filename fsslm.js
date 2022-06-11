@@ -1296,7 +1296,11 @@ const FSSLM = (()=> {
                         }
                         rinfo.matches.push(nd.val);
                     }
-                    rinfo.unmatch = rslt_nrst.delt;
+                    if(rvs) {
+                        rinfo.unmatch = rslt_nrst.delt;
+                    } else {
+                        rinfo.unmatch += rslt_nrst.delt;
+                    }
                     assert(rinfo.unmatch >= 0);
                     rinfo.found = rslt_nrst.found;
                 }
