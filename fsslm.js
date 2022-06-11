@@ -32,7 +32,7 @@ const FSSLM = (()=> {
         MTD_W_TAKE_CTX, MTD_W_TRIM_CTX, MTD_W_PUT_CTX,
         MTD_W_CALC_DELT,
         MTD_W_ND_ITERNEXT,
-        MTD_W_VFOUND, MTD_W_NXTCTX,
+        MTD_W_VFOUND, MTD_W_NXTCTX, MTD_W_SKIPNEXT,
         
         PR_W_ROOT,
         MTD_W_PRE_WALK,
@@ -669,7 +669,7 @@ const FSSLM = (()=> {
                 que.push(ctx);
             }
             
-            [MTD_W_CALC_DELT](ctx, cur, nxt) {
+            [MTD_W_CALC_DELT](cur, nxt) {
                 return nxt.length - cur.length;
             }
             
@@ -685,6 +685,10 @@ const FSSLM = (()=> {
                 return [nxt, nxtcnt];
             }
             
+            [MTD_W_SKIPNEXT](cur, nxt) {
+                return this[PL_W_NDWLK].has(nxt);
+            }
+            
             step() {
                 let ctx = this[MTD_W_TAKE_CTX]();
                 let [nd, wcnt] = ctx;
@@ -693,8 +697,10 @@ const FSSLM = (()=> {
                 }
                 for(let nxt of this[MTD_W_ND_ITERNEXT](nd)) {
                     assert(nxt && nxt !== KEY_ND_LOOPBACK);
-                    if(nxt.length === 0 || this[PL_W_NDWLK].has(nxt)) continue;
-                    let dcnt = this[MTD_W_CALC_DELT](ctx, nd, nxt);
+                    if(this[MTD_W_SKIPNEXT](nd, nxt)) {
+                        continue;
+                    }
+                    let dcnt = this[MTD_W_CALC_DELT](nd, nxt);
                     assert(dcnt > 0);
                     this[MTD_W_PUT_CTX](this[MTD_W_NXTCTX](ctx, nxt, wcnt + dcnt), dcnt);
                     this[PL_W_NDWLK].add(nxt);
@@ -706,7 +712,7 @@ const FSSLM = (()=> {
         
         class c_ss_walker_nearest_reverse extends c_ss_walker_nearest {
             
-            [MTD_W_CALC_DELT](ctx, cur, nxt) {
+            [MTD_W_CALC_DELT](cur, nxt) {
                 return cur.length - nxt.length;
             }
             
@@ -1034,9 +1040,10 @@ const FSSLM = (()=> {
         
         class c_ss_walker_nearest_duplex_reverse extends c_ss_walker_nearest_reverse {
             
-            constructor(start, vset) {
+            constructor(start, root, vset) {
                 super(start);
                 this[PL_W_CUR][0][0].push(new Set(vset));
+                this[PR_W_ROOT] = root;
             }
             
             [MTD_W_PRE_WALK]() {
@@ -1044,37 +1051,37 @@ const FSSLM = (()=> {
                 let [start, wcnt, vset] = ctx;
                 let co_varr = [];
                 let st_iter;
-                let is_root = (start.length === 0);
-                if(is_root) {
-                    st_iter = start.iter();
+                let from_root = !start;
+                if(from_root) {
+                    st_iter = this[PR_W_ROOT].iter();
                 } else {
                     st_iter = start.iter_set();
                 }
-                let start_len = 0;
                 for(let itm of st_iter) {
                     let v;
-                    if(is_root) {
+                    if(from_root) {
                         assert(itm[1] !== KEY_ND_LOOPBACK);
                         v = itm[0];
                     } else {
                         v = itm;
                     }
-                    start_len ++;
                     if(!vset.has(v)) {
                         co_varr.push(v);
                     }
                 }
                 ctx[2] = new c_masked_arr(co_varr);
-                ctx.push(start_len);
             }
             
             *[MTD_W_ND_ITERNEXT](nd) {
+                if(!nd) {
+                    nd = this[PR_W_ROOT];
+                }
                 yield *nd.iter_prev();
             }
             
             [MTD_W_VFOUND](ctx) {
                 let [nd, wcnt, co_varr] = ctx;
-                if(nd.length === 0) {
+                if(!nd) {
                     return false;
                 }
                 let match;
@@ -1091,6 +1098,7 @@ const FSSLM = (()=> {
                     }
                     assert(trim_cnt <= covlen);
                     if(trim_cnt > 0) {
+                        // mod context here
                         ctx[2] = rvarr;
                     }
                     match = (trim_cnt === covlen);
@@ -1104,11 +1112,19 @@ const FSSLM = (()=> {
                 return [nxt, nxtcnt, ctx[2]];
             }
             
-            [MTD_W_CALC_DELT](ctx, cur, nxt) {
-                let clen = ctx[3];
-                if(clen === undefined) {
-                    clen = cur.length;
-                    assert(clen > 0);
+            [MTD_W_SKIPNEXT](cur, nxt) {
+                if(cur === this[PR_W_ROOT]) {
+                    return true;
+                }
+                return super[MTD_W_SKIPNEXT](cur, nxt);
+            }
+            
+            [MTD_W_CALC_DELT](cur, nxt) {
+                let clen;
+                if(cur) {
+                    clen = cur.length
+                } else {
+                    clen = this[PR_W_ROOT].length_next;
                 }
                 return clen - nxt.length;
             }
@@ -1270,10 +1286,7 @@ const FSSLM = (()=> {
                     /* pass */
                 } else {
                     if(rvs) {
-                        if(!rmatch) {
-                            rmatch = this[PR_G_ROOT];
-                        }
-                        wlkr = new c_ss_walker_nearest_duplex_reverse(rmatch, vset);
+                        wlkr = new c_ss_walker_nearest_duplex_reverse(rmatch, this[PR_G_ROOT], vset);
                     } else {
                         wlkr = new c_ss_walker_nearest(rmatch);
                     }
