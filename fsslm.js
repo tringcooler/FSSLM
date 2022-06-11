@@ -685,25 +685,21 @@ const FSSLM = (()=> {
                 return [nxt, nxtcnt];
             }
             
-            [MTD_W_SKIPNEXT](cur, nxt) {
-                return this[PL_W_NDWLK].has(nxt);
-            }
-            
             step() {
                 let ctx = this[MTD_W_TAKE_CTX]();
                 let [nd, wcnt] = ctx;
                 if(this[MTD_W_VFOUND](ctx)) {
                     this[MTD_W_RET](nd, wcnt);
                 }
-                for(let nxt of this[MTD_W_ND_ITERNEXT](nd)) {
-                    assert(nxt && nxt !== KEY_ND_LOOPBACK);
-                    if(this[MTD_W_SKIPNEXT](nd, nxt)) {
-                        continue;
+                if(!this[MTD_W_SKIPNEXT]?.(nd)) {
+                    for(let nxt of this[MTD_W_ND_ITERNEXT](nd)) {
+                        assert(nxt && nxt !== KEY_ND_LOOPBACK);
+                        if(this[PL_W_NDWLK].has(nxt)) continue;
+                        let dcnt = this[MTD_W_CALC_DELT](nd, nxt);
+                        assert(dcnt > 0);
+                        this[MTD_W_PUT_CTX](this[MTD_W_NXTCTX](ctx, nxt, wcnt + dcnt), dcnt);
+                        this[PL_W_NDWLK].add(nxt);
                     }
-                    let dcnt = this[MTD_W_CALC_DELT](nd, nxt);
-                    assert(dcnt > 0);
-                    this[MTD_W_PUT_CTX](this[MTD_W_NXTCTX](ctx, nxt, wcnt + dcnt), dcnt);
-                    this[PL_W_NDWLK].add(nxt);
                 }
                 this[MTD_W_TRIM_CTX]();
             }
@@ -1072,6 +1068,7 @@ const FSSLM = (()=> {
                     }
                 }
                 ctx[1] += vset.size - start_cnt;
+                this[PL_W_STAT].delt = vset.size;
                 ctx[2] = new c_masked_arr(co_varr);
             }
             
@@ -1108,6 +1105,7 @@ const FSSLM = (()=> {
                 } else {
                     match = true;
                 }
+                assert(!match || (wcnt >= 0));
                 return match && nd.valid;
             }
             
@@ -1115,11 +1113,8 @@ const FSSLM = (()=> {
                 return [nxt, nxtcnt, ctx[2]];
             }
             
-            [MTD_W_SKIPNEXT](cur, nxt) {
-                if(cur === this[PR_W_ROOT]) {
-                    return true;
-                }
-                return super[MTD_W_SKIPNEXT](cur, nxt);
+            [MTD_W_SKIPNEXT](nd) {
+                return nd === this[PR_W_ROOT];
             }
             
             [MTD_W_CALC_DELT](cur, nxt) {
