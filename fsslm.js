@@ -289,6 +289,7 @@ const FSSLM = (()=> {
                     this[PL_W_STAT] = {
                         match: null,
                         cmplt: false,
+                        vlen: this[PL_W_CUR][0][1].length,
                     };
                 }
                 
@@ -1206,8 +1207,11 @@ const FSSLM = (()=> {
                         }
                         rinfo.matches.push(nd.val);
                     }
-                    rinfo.unmatch += rslt_nrst.delt; // maybe no add
+                    rinfo.unmatch += rslt_nrst.delt;
                     rinfo.found = rslt_nrst.found;
+                }
+                if(rvs && rinfo.unmatch === Infinity) {
+                    rinfo.unmatch = rslt.vlen;
                 }
                 return rinfo;
             }
@@ -1413,9 +1417,6 @@ const FSSLM = (()=> {
         ]),
         test3: test_sets.bind(null, [
             'a', 'b', 'c', 'd', 'ab',
-        ]),
-        test1: test_sets.bind(null, [
-            'abcd', 'def', //match('adef', true) != match('defa', true)
         ]),
     };
     
