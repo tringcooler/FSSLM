@@ -1020,7 +1020,7 @@ const FSSLM = (()=> {
             
             [MTD_W_RET](match, dcnt) {
                 let qmore = this[PR_W_QMORE];
-                super[MTD_W_RET](match, dcnt - qmore);
+                super[MTD_W_RET](match, qmore - dcnt);
                 if(qmore > 0) {
                     this[PL_W_STAT].cmplt = false;
                 }
@@ -1057,6 +1057,7 @@ const FSSLM = (()=> {
                 } else {
                     st_iter = start.iter_set();
                 }
+                let start_cnt = 0;
                 for(let itm of st_iter) {
                     let v;
                     if(from_root) {
@@ -1065,10 +1066,12 @@ const FSSLM = (()=> {
                     } else {
                         v = itm;
                     }
+                    start_cnt ++;
                     if(!vset.has(v)) {
                         co_varr.push(v);
                     }
                 }
+                ctx[1] += vset.size - start_cnt;
                 ctx[2] = new c_masked_arr(co_varr);
             }
             
@@ -1298,7 +1301,7 @@ const FSSLM = (()=> {
                         }
                         rinfo.matches.push(nd.val);
                     }
-                    rinfo.unmatch += rslt_nrst.delt;
+                    rinfo.unmatch = rslt_nrst.delt;
                     assert(rinfo.unmatch >= 0);
                     rinfo.found = rslt_nrst.found;
                 }
