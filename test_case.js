@@ -356,36 +356,13 @@ const TEST_CASE = ((...c_sslms) => {
     }
     const G_BREAK = new c_breakable();
     
-    return async n => {
-        let all_set = [...Array(n)].map((v, i) => i + 1);
-        let comb_seq = [];
-        for(let s of combine(all_set)) {
-            if(s.length === 0) continue;
-            comb_seq.push(s);
-        }
-        let clen = comb_seq.length;
-        let shflen = 1;
-        for(let i = 2; i <= clen; i++) {
-            shflen *= i;
-            if(shflen > Number.MAX_SAFE_INTEGER) {
-                shflen = 'many';
-                break;
-            }
-        }
-        let show_row = (clen > 256);
-        console.log(`test start for ${n} elments ${clen} sets ${shflen} shuffle. ctrl + c to break.`);
+    const test_loop = async (tseq_gen, qseq_gen, show_row) => {
         let idx = 0;
         while(true) {
-            let tst_seq;
-            if(isNaN(shflen)) {
-                console.log(`route ${++idx}`);
-                tst_seq = randpick(comb_seq);
-            } else {
-                let rand_vid = Math.floor(Math.random() * shflen);
-                console.log(`route ${++idx}: ${rand_vid}`);
-                tst_seq = vidpick(comb_seq, rand_vid);
-            }
-            let route = new c_test_route(tst_seq, comb_seq);
+            console.log(`route ${++idx}`);
+            let tseq = tseq_gen.next?.()?.value ?? tseq_gen;
+            let qseq = qseq_gen.next?.()?.value ?? qseq_gen;
+            let route = new c_test_route(tseq, qseq);
             let is_break = false;
             let rs_cnt = 0;
             for(let _ of route.step()) {
@@ -409,7 +386,43 @@ const TEST_CASE = ((...c_sslms) => {
                 break;
             }
         }
-        console.log('break');
+        console.log('done');
+    };
+    
+    return async n => {
+        let all_set = [...Array(n)].map((v, i) => i + 1);
+        let comb_seq = [];
+        for(let s of combine(all_set)) {
+            if(s.length === 0) continue;
+            comb_seq.push(s);
+        }
+        let clen = comb_seq.length;
+        let tst_seq_gen = null;
+        let shflen = 1;
+        for(let i = 2; i <= clen; i++) {
+            shflen *= i;
+            if(shflen > Number.MAX_SAFE_INTEGER) {
+                shflen = 'many';
+                tst_seq_gen = (function*() {
+                    while(true) {
+                        yield randpick(comb_seq);
+                    }
+                })();
+                break;
+            }
+        }
+        if(!tst_seq_gen) {
+            tst_seq_gen = (function*() {
+                while(true) {
+                    let rand_vid = Math.floor(Math.random() * shflen);
+                    console.log(`rand vid: ${rand_vid}`);
+                    yield vidpick(comb_seq, rand_vid);
+                }
+            })();
+        }
+        let show_row = (clen > 256);
+        console.log(`test start for ${n} elments ${clen} sets ${shflen} shuffle. ctrl + c to break.`);
+        await test_loop(tst_seq_gen, comb_seq, show_row);
     };
     
 });
