@@ -361,8 +361,8 @@ const TEST_CASE = ((...c_sslms) => {
         console.log('ctrl + c to break.');
         while(true) {
             console.log(`route ${++idx}`);
-            let tseq = tseq_gen.next?.()?.value ?? tseq_gen;
-            let qseq = qseq_gen.next?.()?.value ?? qseq_gen;
+            let tseq = tseq_gen instanceof Function ? tseq_gen() : tseq_gen;
+            let qseq = qseq_gen instanceof Function ? qseq_gen() : qseq_gen;
             let route = new c_test_route(tseq, qseq);
             let is_break = false;
             let rs_cnt = 0;
@@ -405,26 +405,23 @@ const TEST_CASE = ((...c_sslms) => {
                 shflen *= i;
                 if(shflen > Number.MAX_SAFE_INTEGER) {
                     shflen = 'many';
-                    tst_seq_gen = (function*() {
-                        while(true) {
-                            yield randpick(comb_seq);
-                        }
-                    })();
+                    tst_seq_gen = () => randpick(comb_seq);
                     break;
                 }
             }
             if(!tst_seq_gen) {
-                tst_seq_gen = (function*() {
-                    while(true) {
-                        let rand_vid = Math.floor(Math.random() * shflen);
-                        console.log(`rand vid: ${rand_vid}`);
-                        yield vidpick(comb_seq, rand_vid);
-                    }
-                })();
+                tst_seq_gen = () => {
+                    let rand_vid = Math.floor(Math.random() * shflen);
+                    console.log(`rand vid: ${rand_vid}`);
+                    return vidpick(comb_seq, rand_vid);
+                };
             }
             let show_row = (clen > 256);
             console.log(`test start for ${n} elments ${clen} sets ${shflen} shuffle.`);
             await test_loop(tst_seq_gen, comb_seq, show_row);
+        },
+        sparse: async (n) => {
+            
         },
     };
     
