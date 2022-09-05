@@ -17,7 +17,7 @@ const TEST_CASE = ((...c_sslms) => {
         }
     }
     
-    function *combine(src) {
+    function *combine(src, mx = Infinity) {
         let slen = src.length;
         if(slen < 1) {
             yield src;
@@ -25,14 +25,21 @@ const TEST_CASE = ((...c_sslms) => {
         }
         let [hd, ...tl] = src;
         for(let stl of combine(tl)) {
-            yield stl;
-            yield stl.concat([hd]);
+            let tlen = stl.length;
+            if(tlen <= mx) {
+                yield stl;
+            }
+            if(tlen < mx) {
+                yield stl.concat([hd]);
+            }
         }
     }
     
+    const randint = (mn, mx) => Math.floor(Math.random() * (mx - mn + 1) + mn);
+    
     function *randseq(n, mn, mx) {
         let nmx = mx - n + 1;
-        let r = Math.floor(Math.random() * (nmx - mn + 1) + mn);
+        let r = randint(nmx, mn);
         yield r;
         if(n > 1) {
             yield *randseq(n - 1, r + 1, mx);
@@ -170,6 +177,7 @@ const TEST_CASE = ((...c_sslms) => {
             this.ndset = {};
             this.tseq = tseq;
             this.qseq = qseq;
+            this.max_qlen = 1000
             this.stat = {};
             this.nid = 0;
         }
@@ -268,8 +276,8 @@ const TEST_CASE = ((...c_sslms) => {
         match() {
             let qseq = this.qseq;
             let sslms = this.sslms;
-            if(qseq.length > 1000) {
-                qseq = randpick(qseq, 1000);
+            if(qseq.length > this.max_qlen) {
+                qseq = randpick(qseq, this.max_qlen);
             }
             for(let tset of qseq) {
                 this.stat.query_set = tset;
@@ -420,8 +428,45 @@ const TEST_CASE = ((...c_sslms) => {
             console.log(`test start for ${n} elments ${clen} sets ${shflen} shuffle.`);
             await test_loop(tst_seq_gen, comb_seq, show_row);
         },
-        sparse: async (n) => {
-            
+        sparse: async (n, m, sc = 1) => {
+            let all_set = [...Array(m)].map((v, i) => i + 1);
+            let comb_seq = [];
+            let query_seq = [];
+            let comb_idx = 0;
+            let rndc_idx = randint(0, sc - 1);
+            for(let s of combine(all_set, n)) {
+                let slen = s.length
+                if(slen === 0 || slen > n) continue;
+                if(comb_idx === rndc_idx) {
+                    comb_seq.push([...randpick(s)]);
+                    query_seq.push([...randpick(s)]);
+                }
+                if(++comb_idx >= sc) {
+                    comb_idx = 0;
+                    rndc_idx = randint(0, sc - 1);
+                }
+            }
+            let clen = comb_seq.length;
+            let tst_seq_gen = null;
+            let shflen = 1;
+            for(let i = 2; i <= clen; i++) {
+                shflen *= i;
+                if(shflen > Number.MAX_SAFE_INTEGER) {
+                    shflen = 'many';
+                    tst_seq_gen = () => randpick(comb_seq);
+                    break;
+                }
+            }
+            if(!tst_seq_gen) {
+                tst_seq_gen = () => {
+                    let rand_vid = Math.floor(Math.random() * shflen);
+                    console.log(`rand vid: ${rand_vid}`);
+                    return vidpick(comb_seq, rand_vid);
+                };
+            }
+            let show_row = (clen > 256);
+            console.log(`test start for ${n} elments ${clen} sets ${shflen} shuffle.`);
+            await test_loop(tst_seq_gen, query_seq, show_row);
         },
     };
     
