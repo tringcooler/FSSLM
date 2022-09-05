@@ -1292,9 +1292,7 @@ const FSSLM = (()=> {
                     } else {
                         wlkr = new c_ss_walker_nearest(rmatch);
                     }
-                    this.tm.time_start();
                     wlkr.walk();
-                    this.tm.time_stop();
                     let rslt_nrst = wlkr.result;
                     for(let nd of rslt_nrst.matches) {
                         if(get_nodes) {

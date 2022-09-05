@@ -173,8 +173,6 @@ const TEST_CASE = ((...c_sslms) => {
                 set: new c_timer2(),
                 match: new c_timer2(),
                 matchr: new c_timer2(),
-                tst: new c_timer2(),
-                tstr: new c_timer2(),
             }));
             this.ndset = {};
             this.tseq = tseq;
@@ -185,19 +183,17 @@ const TEST_CASE = ((...c_sslms) => {
         }
         
         kick_timers() {
-            for(let {set, match, matchr, tst, tstr} of this.timers) {
+            for(let {set, match, matchr} of this.timers) {
                 set.arr1_done();
                 match.arr1_done();
                 matchr.arr1_done();
-                tst.arr1_done();
-                tstr.arr1_done();
             }
         }
         
         repr_timers(ak, iks) {
             let r = '';
             let timers = this.timers;
-            for(let k of ['set', 'match', 'matchr', 'tst', 'tstr']) {
+            for(let k of ['set', 'match', 'matchr']) {
                 r += `  ${k}:\n`;
                 for(let i = 0; i < timers.length; i++) {
                     let tm = timers[i][k];
@@ -208,12 +204,7 @@ const TEST_CASE = ((...c_sslms) => {
                             r += '\n' + ' '.repeat(ttl.length);
                             continue;
                         }
-                        let itm;
-                        if(nm === 'n') {
-                            itm = `${nm}:${tm[ak][nm]}`;
-                        } else {
-                            itm = `${nm}:${_t1000fix3(tm[ak][nm])}ns`;
-                        }
+                        let itm = `${nm}:${_t1000fix3(tm[ak][nm])}ns`;
                         r += _rightpad(itm, 16);
                     }
                     r += '\n';
@@ -225,14 +216,14 @@ const TEST_CASE = ((...c_sslms) => {
         repr_timers_row() {
             return this.repr_timers(
                 'arr1',
-                ['E', 'D', 'MX', /*'MN',*/ 'n'],
+                ['E', 'D', 'MX', 'MN'],
             );
         }
         
         repr_timers_mat() {
             return this.repr_timers(
                 'arr2',
-                ['E', 'D', 'ED', 'DE',, 'MX', 'EMX', 'DMX', /*'MN', 'EMN', 'DMN'*/],
+                ['E', 'D', 'ED', 'DE',, 'MX', 'EMX', 'DMX',/*, 'MN', 'EMN', 'DMN'*/],
             );
         }
         
@@ -299,7 +290,6 @@ const TEST_CASE = ((...c_sslms) => {
                     this.stat.match = match_stat;
                     match_stat.idx = i;
                     match_stat.rvs = false;
-                    sslm.tm = this.timers[i].tst;
                     this.timers[i].match.time_start();
                     let minfo = sslm.match(tset, false);
                     this.timers[i].match.time_stop();
@@ -310,7 +300,6 @@ const TEST_CASE = ((...c_sslms) => {
                     }
                     lst_minfo = minfo;
                     match_stat.rvs = true;
-                    sslm.tm = this.timers[i].tstr;
                     this.timers[i].matchr.time_start();
                     minfo = sslm.match(tset, true);
                     this.timers[i].matchr.time_stop();
