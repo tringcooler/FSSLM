@@ -39,7 +39,7 @@ const TEST_CASE = ((...c_sslms) => {
     
     function *randseq(n, mn, mx) {
         let nmx = mx - n + 1;
-        let r = randint(nmx, mn);
+        let r = randint(mn, nmx);
         yield r;
         if(n > 1) {
             yield *randseq(n - 1, r + 1, mx);
@@ -204,7 +204,12 @@ const TEST_CASE = ((...c_sslms) => {
                             r += '\n' + ' '.repeat(ttl.length);
                             continue;
                         }
-                        let itm = `${nm}:${_t1000fix3(tm[ak][nm])}ns`;
+                        let itm;
+                        if(nm[0] > 'Z') {
+                            itm = `${nm}:${tm[ak][nm]}`;
+                        } else {
+                            itm = `${nm}:${_t1000fix3(tm[ak][nm])}ns`;
+                        }
                         r += _rightpad(itm, 16);
                     }
                     r += '\n';
@@ -216,14 +221,14 @@ const TEST_CASE = ((...c_sslms) => {
         repr_timers_row() {
             return this.repr_timers(
                 'arr1',
-                ['E', 'D', 'MX', 'MN'],
+                ['E', 'D', 'MX'/*, 'MN'*/, 'n'],
             );
         }
         
         repr_timers_mat() {
             return this.repr_timers(
                 'arr2',
-                ['E', 'D', 'ED', 'DE',, 'MX', 'EMX', 'DMX',/*, 'MN', 'EMN', 'DMN'*/],
+                ['E', 'D', 'ED', 'DE',, 'MX', 'EMX', 'DMX'/*, 'MN', 'EMN', 'DMN'*/],
             );
         }
         
@@ -274,10 +279,15 @@ const TEST_CASE = ((...c_sslms) => {
         }
         
         match() {
-            let qseq = this.qseq;
             let sslms = this.sslms;
-            if(qseq.length > this.max_qlen) {
-                qseq = randpick(qseq, this.max_qlen);
+            let qseq;
+            if(this.qseq instanceof Function) {
+                qseq = this.qseq();
+            } else {
+                qseq = this.qseq;
+                if(qseq.length > this.max_qlen) {
+                    qseq = randpick(qseq, this.max_qlen);
+                }
             }
             for(let tset of qseq) {
                 this.stat.query_set = tset;
@@ -314,7 +324,7 @@ const TEST_CASE = ((...c_sslms) => {
         }
         
         *step() {
-            let tseq = this.tseq;
+            let tseq = this.tseq instanceof Function ? this.tseq() : this.tseq;
             for(let tset of tseq) {
                 this.stat.test_set = tset;
                 this.set(tset);
@@ -369,9 +379,7 @@ const TEST_CASE = ((...c_sslms) => {
         console.log('ctrl + c to break.');
         while(true) {
             console.log(`route ${++idx}`);
-            let tseq = tseq_gen instanceof Function ? tseq_gen() : tseq_gen;
-            let qseq = qseq_gen instanceof Function ? qseq_gen() : qseq_gen;
-            let route = new c_test_route(tseq, qseq);
+            let route = new c_test_route(tseq_gen, qseq_gen);
             let is_break = false;
             let rs_cnt = 0;
             for(let _ of route.step()) {
@@ -467,6 +475,17 @@ const TEST_CASE = ((...c_sslms) => {
             let show_row = (clen > 256);
             console.log(`test start for ${n} elments ${clen} sets ${shflen} shuffle.`);
             await test_loop(tst_seq_gen, query_seq, show_row);
+        },
+        sparse_rnd: async (n, m, tmx, qmx) => {
+            let all_set = [...Array(m)].map((v, i) => i + 1);
+            let seq_gen = (v) => function*() {
+                for(let i = 0; i < v; i++) {
+                    yield [...randpick(all_set, n)];
+                }
+            };
+            let show_row = (tmx > 256);
+            console.log(`test start for ${n} elments ${tmx} sets.`);
+            await test_loop(seq_gen(tmx), seq_gen(qmx), show_row);
         },
     };
     
